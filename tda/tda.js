@@ -33,7 +33,6 @@ module.exports.priceHistory = (req) => {
         // year: 1 *, 2, 3, 5, 10, 15, 20
         // ytd: 1 *
 
-        console.log(req)
         let str = ""
         if (req.frequency == "") {
             str = `https://api.tdameritrade.com/v1/marketdata/${req.symbol}/pricehistory?&periodType=&period=1&frequencyType=minute&frequency=1`
@@ -41,7 +40,6 @@ module.exports.priceHistory = (req) => {
             str = `https://api.tdameritrade.com/v1/marketdata/${req.symbol}/pricehistory?&periodType=${req.periodType}&period=${req.period}&frequencyType=${req.frequencyType}&frequency=${req.frequency}`
             
         }
-        console.log(str)
         getdata(str)
             .then((fetch) => {result(fetch)})
             .catch((fail) => {error(fail)})
@@ -85,31 +83,26 @@ function getdata(endpoint) {
 
         request(options, function (error, response, body) {
             if (response.statusCode === 200) {
+                if (body != "") {
+                   
                 console.log(body)
                 let j = JSON.parse(body)
                 console.log(j);
                 result(j)
+                } else
+                {
+                    fail(response.statusMessage)
+                    }
+                
             }
             else {
                 switch (response.statusCode) {
-                    case 400:
-                        console.log('400 Validation problem with the request.');
-                        break;
                     case 401:
                         console.log('401 hint: refresh token');
                         refreshAccessToken();
                         break;
-                    case 500:
-                        console.log('500 There was an unexpected server error.');
-                        break;
-                    case 403:
-                        console.log('403 Caller doesn\'t have access to the account in the request.');
-                        break;
-                    case 503:
-                        console.log('503 Temporary problem responding.');
-                        break;
                     default:
-                        console.log('000 Something ain\'t right...');
+                        console.log(`ERROR: ${response.statuscode}:::  ${response.statusMessage}`);
                         break;
                 }
                 fail({
@@ -117,7 +110,8 @@ function getdata(endpoint) {
                     message: "ERROR"
                 })
 
-            }
+            } 
+             
         })
 
     });
@@ -253,6 +247,5 @@ function getAuthorizationHeader() {
         'Authorization': 'Bearer ' + access_token.access_token
     };
 }
-
 
 
