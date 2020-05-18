@@ -1,8 +1,12 @@
 
 var moment = require('moment');
-var tda = require('./tda/tda.js')
+const tda =  require('./tda/tda.js')
+// var alpaca = require('./alpaca/alpaca.js')
+// var coinbase = require('./coinbase/coinbase')
+//var reddit = require('./reddit/reddit')
 //import * as Tda from './tda_auth.js'
 
+//alpaca.refresh()
 const fetch = require('node-fetch');
 const app = require('express')();
 const https = require('https');
@@ -17,7 +21,8 @@ app.use(function(req, res, next) {
      next();
 });
 //app.use(bodyParser.urlencoded({ extended: true }));
-
+tda.load()
+//alpaca.collectData()
 var _ = require('lodash');
 // var j = JSON.parse(fs.readFileSync("./data/ROKU_chain.json", (err) => { if (err) console.error(err); }))
 // debugger
@@ -54,7 +59,7 @@ app.get('/accountinfo', (req, res,next) => {
      let access_token = JSON.parse(fs.readFileSync("./tda/access_token.json", (err) => { if (err) console.error(err); }))
      let refresh_token = JSON.parse(fs.readFileSync("./tda/refresh_token.json", (err) => { if (err) console.error(err); }))
      let account_info = JSON.parse(fs.readFileSync("./tda/account_info.json", (err) => { if (err) console.error(err); }))
-     JSON.parse(fs.readFileSync("./tda/account_info.json", (err) => { if (err) console.error(err); }))
+     //JSON.parse(fs.readFileSync("./tda/account_info.json", (err) => { if (err) console.error(err); }))
      res.send(JSON.stringify({
           test: "OK",
           refresh_token: refresh_token,
@@ -121,6 +126,12 @@ app.get('/watchlists', (req, res) => {
      })
 });
 
+app.get('/reddit', (req, res) => {
+     console.log(req.path)
+     console.log(req.query)
+     res.send("Hello Reddit.")
+});
+
 
 
 // // we will pass our 'app' to 'https' server
@@ -132,4 +143,4 @@ https.createServer({
 
 // //console.log(tda.keys.Authorization)
 
-tda.refresh()
+//tda.refresh()

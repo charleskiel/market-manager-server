@@ -1,7 +1,69 @@
 const fs = require('fs');
 const request = require('request');
+const _ = require('lodash')
 const moment = require('moment');
+const WebSocket = require('websocket').w3cwebsocket;
+var state = {}
+var stocks = {}
+let refreshTokenInfo =  JSON.parse(fs.readFileSync('./tda/refresh_token.json'))
+let access_token =  JSON.parse(fs.readFileSync('./tda/access_token.json'))
+let accountInfo =  JSON.parse(fs.readFileSync('./tda/account_info.json'))
+let principals = JSON.parse(fs.readFileSync('./tda/user_principals.json'))
+//function principals(){ JSON.parse(fs.readFileSync('./tda/user_principals.json'), (err) => { if (err) console.error(err); })}
 
+jsonToQueryString = (json) => {return Object.keys(json).map(function (key) {return (encodeURIComponent(key) +"=" +encodeURIComponent(json[key]));}).join("&");};
+
+
+var ws = new WebSocket("wss://streamer-ws.tdameritrade.com/ws")
+
+module.exports.load = function() { 
+    module.exports.refresh()
+    
+    ws.onopen = function () {
+        //console.log(principals.accounts);
+        console.log("Connected to Server");
+        
+        let login = JSON.stringify({
+            requests: [
+                {
+                    service: "ADMIN",
+                    command: "LOGIN",
+                    requestid: 0,
+                    account: principals.accounts[0].accountId,
+                    source: principals.streamerInfo.appId,
+                    parameters: {
+                        credential: jsonToQueryString(credentials()),
+                        token: principals.streamerInfo.token,
+                        version: "1.0",
+                        qoslevel: 0,
+                    },
+                },
+            ],
+        });
+        //console.log(login)
+        ws.send(login);
+
+    }
+        // Listen for messages
+    ws.onmessage = function (event) {
+        console.log('Message from server ', event.data);
+        msgRec(JSON.parse(event.data));
+
+        //setState({ packetcount: state.packetcount += 1 })
+        //console.log(msg)
+    }
+
+    ws.onerror = function(error){
+        console.log(error);
+    };
+    
+    ws.onclose = function() {
+        console.log('echo-protocol Connection Closed');
+    }
+    
+    //ws.connect("")
+
+}
 
 module.exports.refresh = () => {
     console.log("Validating credientials")
@@ -9,11 +71,10 @@ module.exports.refresh = () => {
     validateprincipals()
 }
     
-function errorHandler(err, req, res, next) {
+function errorHandler(err, req, res, next){
     res.status(500)
     res.render('error', { error: err })
 }
-
 
 
 module.exports.priceHistory = (req) => {
@@ -61,18 +122,12 @@ module.exports.watchlist = () => {
             .then((fetch) => {result(fetch)}).catch((fail) => {error(fail)})
     })
 }
-module.exports.watchlists = () => {
-    return new Promise((result,error) =>{
-        getdata(`https://api.tdameritrade.com/v1/accounts/${JSON.parse(fs.readFileSync('./tda/user_principals.json')).accounts[0].accountId }/watchlists`)
-            .then((fetch) => {result(fetch)}).catch((fail) => {error(fail)})
-    })
-}
 
 
 
 
 
-function getdata(endpoint) {
+function getdata(endpoint){
     console.log(endpoint)
     return new Promise((result, fail) => {
         const options = {
@@ -84,10 +139,10 @@ function getdata(endpoint) {
         request(options, function (error, response, body) {
             if (response.statusCode === 200) {
                 if (body != "") {
-                   
-                console.log(body)
+                
+                //console.log(body)
                 let j = JSON.parse(body)
-                console.log(j);
+                //console.log(j);
                 result(j)
                 } else
                 {
@@ -99,6 +154,7 @@ function getdata(endpoint) {
                 switch (response.statusCode) {
                     case 401:
                         console.log('401 hint: refresh token');
+                        console.log(refreshAccessToken)
                         refreshAccessToken();
                         break;
                     default:
@@ -111,7 +167,7 @@ function getdata(endpoint) {
                 })
 
             } 
-             
+            
         })
 
     });
@@ -120,7 +176,7 @@ function getdata(endpoint) {
 }
 
 
-function validatetoken() {
+function validatetoken(){
     console.log("Validating Token")
 
     const access_token = JSON.parse(fs.readFileSync('./tda/access_token.json'))
@@ -141,10 +197,9 @@ function validatetoken() {
 }
 
 
-function validateprincipals() {
+function validateprincipals(){
     console.log("Validating Pricipals")
 
-    const access_token = JSON.parse(fs.readFileSync('./tda/access_token.json'))
     const refreshTokenInfo = JSON.parse(fs.readFileSync('./tda/refresh_token.json'))
     const user_principals = JSON.parse(fs.readFileSync('./tda/user_principals.json'))
     
@@ -187,17 +242,13 @@ function validateprincipals() {
     
 }
 
-function refreshAccessToken() {
+function refreshAccessToken(){
 
-
-    // 1. get refresh token and determine if expired or not.
-
-    // read json file
     const refreshTokenInfo = JSON.parse(fs.readFileSync('./tda/refresh_token.json'))
-    const access_token = JSON.parse(fs.readFileSync('./tda/access_token.json'))
     const accountInfo = JSON.parse(fs.readFileSync('./tda/account_info.json'))
-
-
+    
+    // 1. get refresh token and determine if expired or not.
+    // read json file
     // 2. request refreshed token
 
     const options = {
@@ -241,7 +292,7 @@ function refreshAccessToken() {
 
 }
 
-function getAuthorizationHeader() {
+function getAuthorizationHeader(){
     const access_token = JSON.parse(fs.readFileSync('./tda/access_token.json'))
     return {
         'Authorization': 'Bearer ' + access_token.access_token
@@ -249,3 +300,293 @@ function getAuthorizationHeader() {
 }
 
 
+
+
+
+
+
+
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////        Socket Connection        ///////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+let rid = 0
+function requestid(){
+    return (rid = +1);
+};
+
+function credentials () {
+    
+    console.log( JSON.parse(fs.readFileSync('./tda/user_principals.json','utf8'), (err) => { if (err) console.error(err); }))
+console.log(principals)
+//Fdebugger
+    var tokenTimeStampAsDateObj = new Date(
+        principals.streamerInfo.tokenTimestamp
+    );
+    var tokenTimeStampAsMs = tokenTimeStampAsDateObj.getTime();
+
+    return {
+        userid: principals.accounts[0].accountId,
+        token: principals.streamerInfo.token,
+        company: principals.accounts[0].company,
+        segment: principals.accounts[0].segment,
+        cddomain: principals.accounts[0].accountCdDomainId,
+        usergroup: principals.streamerInfo.userGroup,
+        accesslevel: principals.streamerInfo.accessLevel,
+        authorized: "Y",
+        timestamp: tokenTimeStampAsMs,
+        appid: principals.streamerInfo.appId,
+        acl: principals.streamerInfo.acl,
+    };
+};
+
+
+
+
+function msgRec(msg){
+    if (msg.notify) {
+        console.log({heartbeat: msg.notify[0].heartbeat})
+        //console.log(msg)
+    } else {
+        if (msg.data) {
+            msg.data.forEach((m) => {
+                console.log(m);
+                
+                switch (m.service) {
+                    case "QUOTE":
+                        m.content.forEach(eq => equityTick(eq));
+                        break;
+                    case "ACTIVES_NASDAQ":
+                        console.log("Nasdaq Activies")
+                        //console.log(m)
+                        var split = m.content[0]["1"].split(";")
+                        var o = {
+                        "timestamp" : m.timestamp,
+                        "ID:" : split[0],
+                        "sampleDuration" : split[1],
+                        "Start Time" : split[2],
+                        "Display Time" : split[3],
+                        "GroupNumber" : split[4],
+                        "groups" : []}
+                        split = (split[6].split(":"))
+                        o.totalVolume = (split[0])
+                        o.groupcount = split[1]
+                        for (let i = 3; i < split.length; i += 3) {
+                            if (!stocks[split[i]]) stocks[split[i]] = {key : split[i]}
+                            o.groups.push({symbol: split[i], volume: split[i+1], priceChange: split[i+2]}) 
+                            //console.log(`${split[i]} - ${split[i+1]} - ${split[i+2]}`) 
+                        }
+                        console.log(o)
+                        //this.setState({ACTIVES_NASDAQ : o})
+                        
+                        //console.log(this.state.ACTIVES_NASDAQ)
+                    
+                    case "ACTIVES_NYSE":
+                        console.log("NYSE Activies")
+                        //console.log(m)
+                        var split = m.content[0]["1"].split(";")
+                        var o = {
+                        "timestamp" : m.timestamp,
+                        "ID:" : split[0],
+                        "sampleDuration" : split[1],
+                        "Start Time" : split[2],
+                        "Display Time" : split[3],
+                        "GroupNumber" : split[4],
+                        "groups" : []}
+                        split = (split[6].split(":"))
+                        o.totalVolume = (split[0])
+                        o.groupcount = split[1]
+                        for (let i = 3; i < split.length; i += 3) {
+                            if (!stocks[split[i]]) stocks[split[i]] = {key : split[i]}
+                            o.groups.push({symbol: split[i], volume: split[i+1], priceChange: split[i+2]}) 
+                            //console.log(`${split[i]} - ${split[i+1]} - ${split[i+2]}`) 
+                            
+                        }
+                        this.setState({ACTIVES_NYSE : o})
+                        
+                        //console.log(this.state.ACTIVES_NYSE)
+                        break;
+                    case "ACTIVES_OPTIONS":
+                        console.log("OPTIONS Activies")
+                        //console.log(m)
+                        var split = m.content[0]["1"].split(";")
+                        var o = {
+                        "timestamp" : m.timestamp,
+                        "ID:" : split[0],
+                        "sampleDuration" : split[1],
+                        "Start Time" : split[2],
+                        "Display Time" : split[3],
+                        "GroupNumber" : split[4],
+                        "groups" : []}
+
+                        split = (split[6].split(":"))
+                        o.totalVolume = (split[3])
+                        o.groupcount = split[1]
+
+                        for (let i = 3; i < split.length; i += 4) {
+                            //if (!this.state[split[i]]) this.tickerSubscribe([split[i]])
+                            o.groups.push({symbol: split[i], name: split[i+1], volume: split[i+2], percentChange: split[i+3]}) 
+                        }
+                        //this.setState({ACTIVES_OPTIONS : o})
+                        console.log(o)
+                        break;
+                    case "ACTIVES_OTCBB":
+                        console.log("OTCBB Activies")
+                        console.log(m)
+                        break;
+                    default:
+                        //console.log(`Default Message: ${msg}`);
+                        //console.log(msg);
+                }
+            });
+        }
+
+        if (msg.response) {
+            msg.response.forEach((m) => {
+                switch (m.service) {
+                    case "ADMIN":
+                        if (m.content.code === 0) {
+                            console.log(`Login Sucuess! [code: ${m.content.code} msg:${m.content.msg}`);
+                            tickerSubscribe( ["QQQ","GLD","SPY","TSLA","AAPL","AMD","AMZN"]);
+                            getWatchLists()
+                            initStream()
+                            //getInsturment("TSLA")
+                        } else {
+                            console.log(`LOGIN FAILED!! [code: ${m.content.code} msg:${m.content.msg}`);
+                        }
+                        break;
+                    case "CHART_EQUITY":
+                        break;
+                    case "ACTIVES_NASDAQ":
+                        console.log(msg)
+                        break;
+                    default:
+                    //console.log(`Default Message ${msg}`)
+                    console.log(msg)
+                    break;
+                }
+            });
+        }
+    }
+};
+
+function sendMsg(c){
+    console.log(`Sending: ${JSON.stringify(c)}`);
+    ws.send(JSON.stringify(c));
+};
+
+function initStream(){
+    sendMsg({
+        "requests": [
+            {
+               "service": "ACTIVES_NASDAQ", 
+               "requestid": "3", 
+               "command": "SUBS", 
+               "account": principals.accounts[0].accountId, 
+               "source": principals.streamerInfo.appId, 
+               "parameters": {
+                  "keys": "NASDAQ-ALL", 
+                  "fields": "0,1"
+               }
+            }, 
+            {
+               "service": "ACTIVES_OTCBB", 
+               "requestid": "5", 
+               "command": "SUBS", 
+               "account": principals.accounts[0].accountId, 
+               "source": principals.streamerInfo.appId, 
+               "parameters": {
+                  "keys": "OTCBB-ALL", 
+                  "fields": "0,1"
+               }
+            }, 
+            {
+               "service": "ACTIVES_NYSE", 
+               "requestid": "2", 
+               "command": "SUBS", 
+               "account": principals.accounts[0].accountId, 
+               "source": principals.streamerInfo.appId, 
+               "parameters": {
+                  "keys": "NYSE-ALL", 
+                  "fields": "0,1"
+               }
+            }, 
+            {
+               "service": "ACTIVES_OPTIONS", 
+               "requestid": "4", 
+               "command": "SUBS", 
+               "account": principals.accounts[0].accountId, 
+               "source": principals.streamerInfo.appId,             
+               "parameters": {
+                  "keys": "OPTS-DESC-ALL", 
+                  "fields": "0,1"
+               }
+            }
+        ]
+    })
+    sendMsg({
+        "requests": [
+            {
+               "service": "CHART_FUTURES",
+               "requestid": "2",
+               "command": "SUBS",
+               "account": principals.accounts[0].accountId, 
+               "source": principals.streamerInfo.appId,    
+               "parameters": {
+                  "keys": "/ES",
+                  "fields": "0,1,2,3,4,5,6,7"
+               }
+            }
+        ]
+    })
+}
+
+let watchlists = {}
+function getWatchLists(){
+    return new Promise((sucsess, fail) => {
+        fetch("https://charleskiel.dev:8000/watchlists", {
+            method: "GET",
+            mode: "cors",
+            headers: {"Content-Type": "application/json"},
+        })
+        .then((response) => response.json())
+        .then((response) => {
+            watchlists = response ;
+        })
+    })
+}
+
+
+function tickerSubscribe(key){
+    if (!stocks[key]) stocks[key] = {key:key}
+    
+    //let keys = []
+    
+    //let keys = [...key]
+    //console.log(_.keys(this.state).map(m => m.key).toString())
+    sendMsg({
+        requests: [
+            {
+                service: "QUOTE",
+                requestid: requestid(),
+                command: "SUBS",
+                account: principals.accounts[0].accountId,
+                source: principals.streamerInfo.appId,
+                parameters: {
+                    keys: [..._.keys(stocks).map(stock => stock.key)].toString(),
+                    fields: "0,1,2,3,8,9,10,11,12,13,14,15,16,17,18,24,25,28,29,40",
+                },
+            },
+        ],
+    });
+};
+
+
+function equityTick(tick){
+    console.log(tick)
+    stocks[tick.key] = {...stocks[tick.key],...tick}
+};
