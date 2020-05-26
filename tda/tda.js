@@ -79,7 +79,7 @@ module.exports.load = function() {
         console.log(error);
     };
     
-    ws.onclose = function() {console.log(moment(Date.now()).format() + ': echo-protocol Connection Closed')}
+    ws.onclose = function () { console.log(moment(Date.now()).format() + ': echo-protocol Connection Closed'); process.exit();}
 }
 
 module.exports.refresh = () => {
