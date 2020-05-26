@@ -15,8 +15,8 @@ const bodyParser = require('body-parser');
 app.use(function(req, res, next) {
      res.header("Access-Control-Allow-Origin", "*");
      res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
-     console.log(req.body);
-     console.log(req.query);
+     //console.log(req.body);
+     //console.log(req.query);
 
      next();
 });
@@ -38,12 +38,6 @@ var _ = require('lodash');
 //      })
 // })
 // )
-
-//throw new Error('This is not an error. This is just to abort javascript');
-
-JSON.parse(fs.readFileSync("./data/ROKU_chain.json", (err) => { if (err) console.error(err); }))
-
-
 
 
 var mysql = require('mysql');
@@ -116,9 +110,30 @@ app.get('/watchlist', (req, res) => {
      })
 });
 
-app.get('/watchlists', (req, res) => {
-     tda.watchlists().then((data) => {
+app.get('/state', (req, res) => {
+     tda.state().then((data) => {
           console.log(`Sucuess: ${data}`)
+          res.send(JSON.stringify(data, undefined, 4));
+     }, (error) => {
+          console.log(`${error}`)
+          res.send("{ERROR:ERROR}")
+     })
+});
+
+app.get('/status', (req, res) => {
+     tda.status().then((data) => {
+          console.log(`Sucuess: ${data}`)
+          res.send(JSON.stringify(data, undefined, 4));
+     }, (error) => {
+          console.log(`${error}`)
+          res.send("{ERROR:ERROR}")
+     })
+});
+
+app.get('/getWatchlists', (req, res) => {
+     tda.getWatchlists().then((data) => {
+          console.log(`Sucuess: ${data}`)
+          console.log(data)
           res.send(JSON.stringify(data, undefined, 4));
      }, (error) => {
           console.log(`${error}`)
