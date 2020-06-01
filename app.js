@@ -79,63 +79,63 @@ app.get('/tda_callback', (req, res,next) => {
 
 
 app.get('/pricehistory', (req, res) => {
-     tda.priceHistory(req.query).then((data) => {
+     tda.priceHistory(req.query).then(data => {
           console.log(`Sucuess: ${data}`)
           fs.writeFileSync(`./data/${req.query.symbol}.json`, JSON.stringify(data, undefined, 4), (err) => { if (err) throw err; })
           res.send(JSON.stringify(data, undefined, 4));
-     }, (error) => {
+     }, error => {
           console.log(`${error}`)
           res.send("{ERROR:ERROR}")
      })
 });
 
 app.get('/chains', (req, res) => {
-     tda.chains(req.query.symbol).then((data) => {
+     tda.chains(req.query.symbol).then(data => {
           console.log(`Sucuess: ${data}`)
           fs.writeFileSync(`./data/${req.query.symbol}_chain.json`, JSON.stringify(data, undefined, 4), (err) => { if (err) throw err; })
           res.send(JSON.stringify(data, undefined, 4));
-     }, (error) => {
+     }, error => {
           console.log(`${error}`)
           res.send("{ERROR:ERROR}")
      })
 });
 
 app.get('/watchlist', (req, res) => {
-     tda.watchlists().then((data) => {
+     tda.watchlists().then(data => {
           console.log(`Sucuess: ${data}`)
           res.send(JSON.stringify(data, undefined, 4));
-     }, (error) => {
+     }, error => {
           console.log(`${error}`)
           res.send("{ERROR:ERROR}")
      })
 });
 
 app.get('/state', (req, res) => {
-     tda.state().then((data) => {
+     tda.state().then(data => {
           console.log(`Sucuess: ${data}`)
           res.send(JSON.stringify(data, undefined, 4));
-     }, (error) => {
+     }, error => {
           console.log(`${error}`)
           res.send("{ERROR:ERROR}")
      })
 });
 
 app.get('/status', (req, res) => {
-     tda.status().then((data) => {
+     tda.status().then(data => {
           console.log(`Sucuess: ${data}`)
           res.send(JSON.stringify(data, undefined, 4));
-     }, (error) => {
+     }, error => {
           console.log(`${error}`)
           res.send("{ERROR:ERROR}")
      })
 });
 
 app.get('/getWatchlists', (req, res) => {
-     tda.getWatchlists().then((data) => {
+     tda.getWatchlists().then(data => {
           console.log(`Sucuess: ${data}`)
           console.log(data)
           res.send(JSON.stringify(data, undefined, 4));
-     }, (error) => {
+     }, error => {
           console.log(`${error}`)
           res.send("{ERROR:ERROR}")
      })

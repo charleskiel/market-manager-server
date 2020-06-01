@@ -10,6 +10,7 @@ let _msgcount = 0; function msgcount(){return _msgcount += +1;};
 let _packetcount = 0; function packetcount(){return _packetcount += +1;};
 
 
+var account = {}
 var stocks = {}
 var futures = {}
 var activities = {
@@ -40,7 +41,7 @@ const con = mysql.createConnection({
 
 
 var ws = new WebSocket("wss://streamer-ws.tdameritrade.com/ws")
-
+var partmsg = ""
 module.exports.load = function() { 
     module.exports.refresh()
     
@@ -68,8 +69,19 @@ module.exports.load = function() {
         }
     )}
     ws.onmessage = function (event) {
-        //console.log('Message from server ', event.data);
-        msgRec(JSON.parse(event.data));
+        try {
+            //console.log(event.data)
+            msgRec(JSON.parse(event.data));
+            
+        } catch (error) {
+            console.log("\x1b[41m",'Message from server ', event.data);
+            console.log("\x1b[41m", error)
+            console.log("\x1b[40m")
+              if (partmsg === "")
+            {partmsg = event.data} 
+            else 
+            { partmsg = partmsg + event.data; msgRec(partmsg);partmsg = ""}
+        }
 
         //setState({ packetcount: state.packetcount += 1 })
         //console.log(msg)
@@ -135,27 +147,41 @@ module.exports.chains = (symbol) => {
 }
 
 module.exports.status = () => {
-    return new Promise((result,error) =>{
-        result({
-            systemtime : Date.now(),
-            msgcount : _msgcount,
-            packetcount : _packetcount
-        })
-        error(fail)
-    })
-}
+    //let results = {}
+    return new Promise((result, error) => {
+        getdata(`https://api.tdameritrade.com/v1/accounts?fields=positions,orders`)
+            .then((data) => {
+                account = data
+                results = {
+                    service: "status",
+                    timestamp: Date.now(),
+                    content: [{
+
+                        systemtime: Date.now(),
+                        msgcount: _msgcount,
+                        packetcount: _packetcount,
+                        account: data
+                    }]
+                }
+                //console.log(results)
+                dbWrite(results)
+            })
+        result(results).catch((fail) => { error(fail) }
+        )
+    }
+)}
 
 module.exports.state = () => {
     return new Promise((result,error) =>{
         result({
                 activities : activities,
                 stocks : stocks,
-                futures : futures
+                futures: futures,
+                account: account
             })
         error(fail)
     })
 }
-
 
 module.exports.getWatchlists = () => {
     return new Promise((result,error) =>{
@@ -174,21 +200,10 @@ module.exports.getWatchlists = () => {
                         }
                     })
                 })
-                
-                //stocklist = stocklist.filter((item, index) => stocklist.indexOf(item) != index)
-                
-                //debugger
-                
-                stocklist.map(_key => {
-                    if (!stocks[_key]) stocks[_key] = {key:_key}
-                })
-                //debugger
-                
-                if (futureslist.length > 0) futureslist.map(_key => {
-                    if (!futures[_key]) futures[_key] = {key:_key}
-                })
-                //debugger
 
+                stocklist.map(_key => {if (!stocks[_key]) stocks[_key] = {key:_key}})
+                if (futureslist.length > 0) futureslist.map(_key => {if (!futures[_key]) futures[_key] = {key:_key}})
+                if (futurestestlist.length > 0) futurestestlist.map(_key => {if (!futures[_key]) futures[_key] = {key:_key}})
                 result(data)
 
             }).catch(
@@ -225,7 +240,7 @@ function getdata(endpoint){
                     case 401:
                         console.log(moment(Date.now()).format() + ': 401 hint: refresh token');
                         //console.log(moment(Date.now()).format() + refreshAccessToken)
-                        refreshAccessToken();
+                        module.exports.refresh();
                         break;
                     default:
                         console.log(moment(Date.now()).format() + `: ERROR: ${response.statuscode}:::  ${response.statusMessage}`);
@@ -247,8 +262,8 @@ function validatetoken(){
     const access_token = JSON.parse(fs.readFileSync('./tda/access_token.json'))
     const refreshTokenInfo = JSON.parse(fs.readFileSync('./tda/refresh_token.json'))
     
-    console.log(moment(Date.now()).format() + `: Access code expires ${moment(access_token.created_on + access_token.expires_in).fromNow()}`)
     console.log(moment(Date.now()).format() + ": =================================================")
+    console.log(moment(Date.now()).format() + `: Access code expires ${moment(access_token.created_on + access_token.expires_in).fromNow()}`)
     console.log(moment(Date.now()).format() + `: Refresh Token updated ${moment(refreshTokenInfo.updated_on).fromNow()}, expires ${moment(refreshTokenInfo.updated_on).add(90, 'days').fromNow()}. No update needed.`)
     
     if (Date.now() >= access_token.created_on + (access_token.expires_in *1000)) {
@@ -295,12 +310,8 @@ function validateprincipals(){
                     console.log(moment(Date.now()).format() + `: principals updated. Expires ${moment(user_principals.tokenExpirationTime).fromNow()} `);
                 }
                 //debugger
-            })
-            .catch((fail) => { console.log(moment(Date.now()).format() + fail) })
-        
-        
-        
-
+            }
+        ).catch((fail) => { console.log(moment(Date.now()).format() + fail) })
     }
     else {
         console.log(moment(Date.now()).format() + `: Principals OK updated ${moment(user_principals.streamerInfo.tokenTimestamp).fromNow()}, expires ${moment(refreshTokenInfo.expires_on).add(90, 'days').fromNow()}.`)
@@ -313,10 +324,6 @@ function refreshAccessToken(){
     const refreshTokenInfo = JSON.parse(fs.readFileSync('./tda/refresh_token.json'))
     const accountInfo = JSON.parse(fs.readFileSync('./tda/account_info.json'))
     
-    // 1. get refresh token and determine if expired or not.
-    // read json file
-    // 2. request refreshed token
-
     const options = {
         url: 'https://api.tdameritrade.com/v1/oauth2/token',
         method: 'POST',
@@ -334,7 +341,6 @@ function refreshAccessToken(){
     console.log(moment(Date.now()).format() + options.form)
     request(options, function (error, response, body) {
 
-        // 3. now that you have the access token, store it so it persists over multiple instances of the script.
         let data = JSON.parse(body);
         console.log(data)
         if (data.error == "Invalid ApiKey"){
@@ -353,7 +359,6 @@ function refreshAccessToken(){
             console.log(moment(Date.now()).format() + ": Access Token updated. Expires in " + data.expires_in + " seconds");
             //debugger
         }
-        //debugger
     });
 
 }
@@ -381,15 +386,10 @@ function getAuthorizationHeader(){
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 function credentials () {
-    
-//console.log(moment(Date.now()).format() +  JSON.parse(fs.readFileSync('./tda/user_principals.json','utf8'), (err) => { if (err) console.error(err); }))
-//console.log(moment(Date.now()).format() + principals)
-//Fdebugger
     var tokenTimeStampAsDateObj = new Date(
         principals.streamerInfo.tokenTimestamp
     );
     var tokenTimeStampAsMs = tokenTimeStampAsDateObj.getTime();
-
     return {
         userid: principals.accounts[0].accountId,
         token: principals.streamerInfo.token,
@@ -412,7 +412,8 @@ function msgRec(msg){
     //sendToClients(msg)
     packetcount()
     if (msg.notify) {
-        console.log(moment(Date.now()).format() + `: heartbeat: ${moment.unix(msg.notify[0].heartbeat).format()}`)
+        console.log("\x1b[36m%s\x1b[0m", moment.unix(msg.notify[0].heartbeat).format("LTS") + ` [${"Heartbeat".padEnd(16, " ")}] :: heartbeat: ${moment.unix(msg.notify[0].heartbeat).format("LLLL")}`);
+        console.log(moment(Date.now()).format("LTS") + `: heartbeat: ${moment.unix(msg.notify[0].heartbeat).format("LLLL")}`)
         //console.log(moment(Date.now()).format() + msg)
     } else {
         if (msg.data) {
@@ -427,9 +428,12 @@ function msgRec(msg){
                     case "CHART_FUTURES":
                         m.content.forEach(eq => equityTick(eq));
                         break;
+                    case "LEVELONE_FUTURES":
+                        m.content.forEach(eq => equityTick(eq));
+                        break;
                     case "ACTIVES_NASDAQ":
                         var split = m.content[0]["1"].split(";")
-                        console.log(split)
+                        //console.log(split)
                         if (split.length > 1){
                             var o = {
                                 "timestamp" : m.timestamp,
@@ -492,7 +496,7 @@ function msgRec(msg){
                         //     o.groups.push({symbol: split[i], name: split[i+1], volume: split[i+2], percentChange: split[i+3]}) 
                         // }
                         
-                        console.log(moment(Date.now()).format() + `: Default Message: ` + m.service, m);
+                        //console.log(moment(Date.now()).format() + `: Default Message: ` + m.service, m);
                         //console.log(moment(Date.now()).format() + msg);
                 }
             });
@@ -515,7 +519,7 @@ function msgRec(msg){
                         }
                         break;
                     case "CHART_EQUITY":
-                        console.log(moment(Date.now()).format() + m)
+                        //console.log(moment(Date.now()).format() + m)
                         break;
                     case "ACTIVES_NASDAQ":
                         break;
@@ -593,7 +597,7 @@ var watchlists = {}
 var futureslist = []
 var stocklist = []
 function subscribe(){
-        console.log(moment(Date.now()).format() + `: Subscribing to ${stocklist.length} stocks `)
+        console.log(moment(Date.now()).format() + `: Subscribing to ${[...stocklist,...stocktestlist].length} stocks `)
         
         sendMsg({
             requests: [{
@@ -604,7 +608,7 @@ function subscribe(){
                 source: principals.streamerInfo.appId,
                 parameters: {
                     //keys: [..._.keys(stocks).map(stock => stock.key), ...keys].toString(),
-                    keys: stocklist.toString(),
+                    keys: [...stocklist,...stocktestlist].toString(),
                     fields: "0,1,2,3,8,9,10,11,12,13,14,15,16,17,18,24,25,28,29,30,31,40,49",
                 }
             }]
@@ -618,7 +622,7 @@ function subscribe(){
                 account: principals.accounts[0].accountId,
                 source: principals.streamerInfo.appId,
                 parameters: {
-                    keys: stocklist.toString(),
+                    keys: [...stocklist,...stocktestlist].toString(),
                     fields: "0,1,2,3,4,5,6,7,8"
                 }
             }]
@@ -632,7 +636,7 @@ function subscribe(){
                 account : principals.accounts[0].accountId, 
                 source : principals.streamerInfo.appId,    
                 parameters : {
-                    keys: stocklist.toString(),
+                    keys: [...stocklist,...stocktestlist].toString(),
                     fields : "0,1,2,3,4,5,6,7,8,9,10"
                 }
             }]
@@ -640,82 +644,77 @@ function subscribe(){
                 
         // sendMsg({
         //     requests: [{
-        //         //     service : "TIMESALE_EQUITY",
-        //         //     requestid : "2",
-        //         //     command : "SUBS",
-        //         //     account : "your_account0",
-        //         //     source : "your_source_id",
-        //         //     parameters : {
-        //         //         keys : [..._.keys(stocks).map(stock => stock.key), ...key].toString(),
-        //         //         fields : "0,1,2,3,4"
-        //         //         }
-        //         // }
+        //             service : "TIMESALE_EQUITY",
+        //             requestid : "2",
+        //             command : "SUBS",
+        //             account : "your_account0",
+        //             source : "your_source_id",
+        //             parameters : {
+        //                 keys: [...stocklist,...stocktestlist].toString(),
+        //                 fields : "0,1,2,3,4"
+        //                 }
         //     }]
         // });
     
-        if (futureslist.length > 0){
-
-            
-            if (!futures[key]) futures[key] = {key:key}
-            console.log(moment(Date.now()).format() + `: Subscribing to ${futureslist.length} futures `)
-            
-            sendMsg({
-                requests: [{
-                    service : "CHART_FUTURES",
+   
+        console.log(moment(Date.now()).format() + `: Subscribing to ${futurestestlist.length} futures `)
+        
+        sendMsg({
+            requests: [{
+                service : "CHART_FUTURES",
+                requestid: requestid(),
+                command : "SUBS",
+                account : principals.accounts[0].accountId, 
+                source : principals.streamerInfo.appId,    
+                parameters : {
+                    keys: futurestestlist.toString(),
+                    fields : "0,1,2,3,4,5,6,7"
+                }
+            }]
+        })
+                
+        sendMsg({
+            requests: [{
+                    service : "LEVELONE_FUTURES",
+                    requestid : requestid(),
+                    command : "SUBS",
+                    account : principals.accounts[0].accountId, 
+                    source : principals.streamerInfo.appId,    
+                    parameters : {
+                        keys: futurestestlist.toString(),
+                        fields : "0,1,2,3,4,8,9,12,13,14,16,18,19,20,23,24,25,26,27,28,31"
+                    }
+                
+            }]
+        })
+        
+        sendMsg({
+            requests: [{
+                    service : "TIMESALE_FUTURES",
                     requestid: requestid(),
                     command : "SUBS",
                     account : principals.accounts[0].accountId, 
                     source : principals.streamerInfo.appId,    
                     parameters : {
-                        keys: futureslist.toString(),
-                        fields : "0,1,2,3,4,5,6,7"
+                        keys: futurestestlist.toString(),
+                        fields : "0,1,2,3,4"
                     }
-                }]
-            })
-                    
-            sendMsg({
-                requests: [{
-                        service : "LEVELONE_FUTURES",
-                        requestid : requestid(),
-                        command : "SUBS",
-                        account : principals.accounts[0].accountId, 
-                        source : principals.streamerInfo.appId,    
-                        parameters : {
-                            keys: futureslist.toString(),
-                            fields : "0,1,2,3,4"
-                        }
-                    
-                }]
-            })
-            
-            sendMsg({
-                requests: [{
-                        service : "TIMESALE_FUTURES",
-                        requestid: requestid(),
-                        command : "SUBS",
-                        account : principals.accounts[0].accountId, 
-                        source : principals.streamerInfo.appId,    
-                        parameters : {
-                            keys: futureslist.toString(),
-                            fields : "0,1,2,3,4"
-                        }
-                    }
-                ]
-            })
-        
-            // sendMsg({
-            //     requests: [
-            //         {
-            //             service: "ADMIN",
-            //             requestid: requestid(),
-            //             command: "SUBS",
-            //             account: principals.accounts[0].accountId,
-            //             source: principals.streamerInfo.appId,
-            //             parameters: {"qoslevel": "5"},
-            //         },
-            //     ],
-            // });
-        }
+                }
+            ]
+        })
+    
+        // sendMsg({
+        //     requests: [
+        //         {
+        //             service: "ADMIN",
+        //             requestid: requestid(),
+        //             command: "SUBS",
+        //             account: principals.accounts[0].accountId,
+        //             source: principals.streamerInfo.appId,
+        //             parameters: {"qoslevel": "5"},
+        //         },
+        //     ],
+        // });
     
     
 
@@ -730,19 +729,77 @@ function equityTick(tick){
 
 
 function dbWrite(data){
-    console.log(moment(Date.now()).format() + `: INSERT INTO data (service,timestamp,content) VALUES ( '${data.service}', ${data.timestamp}, '${JSON.stringify(data.content)}');`)
-
+    let color = ""
     data.content.map(_content =>{
 
-        let str = `INSERT INTO data (service,timestamp,content) VALUES ( '${data.service}', ${data.timestamp}, '${mysql_real_escape_string(JSON.stringify(_content))}');`
+        //console.log(moment(data.timestamp).format("h:mm:ss a") + `: INSERT INTO data (service,timestamp,content) VALUES ( '${data.service}', ${data.timestamp}, '${JSON.stringify(data.content)}');`);
+        if (data.service === "ACTIVES_NYSE") {
+            str = "INSERT INTO `" + data.service + "` (timestamp,content) VALUES (" + data.timestamp + ",'"+ mysql_real_escape_string(JSON.stringify(_content)) + "');"
+            color = "\x1b[33m"
+        } //Yellow
+        else if (data.service === "ACTIVES_NASDAQ") {
+            str = "INSERT INTO `" + data.service + "` (timestamp,content) VALUES (" + data.timestamp + ",'"+ mysql_real_escape_string(JSON.stringify(_content)) + "');"
+            color = "\x1b[34m"
+        } //Blue
+        else if (data.service === "ACTIVES_OPTIONS") {
+            str = "INSERT INTO `" + data.service + "` (timestamp,content) VALUES (" + data.timestamp + ",'"+ mysql_real_escape_string(JSON.stringify(_content)) + "');"
+            color = "\x1b[34m"
+        } //Blue
+        else if (data.service === "ACTIVES_OTCBB") {
+            str = "INSERT INTO `" + data.service + "` (timestamp,content) VALUES (" + data.timestamp + ",'"+ mysql_real_escape_string(JSON.stringify(_content)) + "');"
+            color = "\x1b[36m"
+        } //Teal
+        else if (data.service === "QUOTE") {
+            str = "INSERT INTO `" + data.service + "` (`key`,timestamp,content) VALUES ('" + _content.key + "'," + data.timestamp + ",'"+ mysql_real_escape_string(JSON.stringify(_content)) + "');"
+            color = "\x1b[35m"
+        } //Magenta
+        else if (data.service === "CHART_EQUITY") {
+            str = "INSERT INTO `" + data.service + "` (`key`,timestamp,content) VALUES ('" + _content.key + "'," + data.timestamp + ",'"+ mysql_real_escape_string(JSON.stringify(_content)) + "');"
+            color = "\x1b[31m"
+        } //Magenta
+        else if (data.service === "CHART_FUTURES") {
+            str = "INSERT INTO `" + data.service + "` (`key`,timestamp,content) VALUES ('" + _content.key + "'," + data.timestamp + ",'"+ mysql_real_escape_string(JSON.stringify(_content)) + "');"
+            color = "\x1b[35m"
+        } //Magenta
+        else if (data.service === "LEVELONE_FUTURES") {
+            str = "INSERT INTO `" + data.service + "` (`key`,timestamp,content) VALUES ('" + _content.key + "'," + data.timestamp + ",'"+ mysql_real_escape_string(JSON.stringify(_content)) + "');"
+            color = "\x1b[32m"
+        } //Green
+        else if (data.service === "TIMESALE_FUTURES") {
+            str = "INSERT INTO `" + data.service + "` (`key`,timestamp,content) VALUES ('" + _content.key + "'," + data.timestamp + ",'"+ mysql_real_escape_string(JSON.stringify(_content)) + "');"
+            color = "\x1b[92m"
+        } //Bright Green
+        else if (data.service === "NEWS_HEADLINE") {
+            str = "INSERT INTO `" + data.service + "` (`key`,timestamp,content) VALUES ('" + _content.key + "'," + data.timestamp + ",'"+ mysql_real_escape_string(JSON.stringify(_content)) + "');"
+
+            } //Bright Green
+        else if (data.service === "status")
+        {
+            color = "\x1b[45m";
+        } //Blue
+        else
+        {
+            console.log(moment(data.timestamp).format("LTS") + color + ` [${data.service.padEnd(16, " ")}] :: ${JSON.stringify(data.content)}\x1b[37m \x1b[40m`);
+            str = "INSERT INTO `" + data.service.toUpperCase() + "` (timestamp,content) VALUES (" + data.timestamp + ",'"+ mysql_real_escape_string(JSON.stringify(_content)) + "');"
+            color = "\x1b[5m"
+        }
+
+
+        //console.log("\x1b[40m")
+        //console.log("\x1b[37m")
+
+        //let str = `INSERT INTO data (service,timestamp,content) VALUES ( '${data.service}', ${data.timestamp}, '${mysql_real_escape_string(JSON.stringify(_content))}');`
         //console.log(str)
         con.query(str, function (error, results, fields) {
             if (error) { 
+                console.log(error.sql);
                 console.log(moment(Date.now()).format() + error);
-                console.log(error.sql) 
+                //process.exit();
             }
         })
     })
+    console.log(moment(data.timestamp).format("LTS") + color + ` [${data.service.padEnd(16, " ")}] :: ${JSON.stringify(data.content)}\x1b[37m \x1b[40m`);
+
 }
 
 function mysql_real_escape_string (str) {
@@ -772,8 +829,9 @@ function mysql_real_escape_string (str) {
     });
 }
 
-setTimeout(module.exports.refresh,(30* (60*60*1000)))
-//setTimeout(module.exports.refresh,(30* (60*60*1000)))
+setInterval(module.exports.refresh,(60*60*1000))
+setInterval(module.exports.status,10000)
+//setInterval(module.exports.refresh,(30* (60*60*1000)))
 
 
 
