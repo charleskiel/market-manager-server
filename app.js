@@ -121,13 +121,7 @@ app.get('/state', (req, res) => {
 });
 
 app.get('/status', (req, res) => {
-     tda.status().then(data => {
-          console.log(`Sucuess: ${data}`)
-          res.send(JSON.stringify(data, undefined, 4));
-     }, error => {
-          console.log(`${error}`)
-          res.send("{ERROR:ERROR}")
-     })
+     res.send(JSON.stringify(tda.status(), undefined, 4));
 });
 
 app.get('/getWatchlists', (req, res) => {
@@ -145,6 +139,15 @@ app.get('/reddit', (req, res) => {
      console.log(req.path)
      console.log(req.query)
      res.send("Hello Reddit.")
+});
+
+
+
+
+app.get('/mm', (req, res) => {
+     console.log(req.path)
+     console.log(req.query)
+     res.sendFile(path.join(__dirname, 'react-mm/build/index.html'))
 });
 
 
