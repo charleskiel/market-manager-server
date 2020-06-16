@@ -40,14 +40,6 @@ var _ = require('lodash');
 // )
 
 
-var mysql = require('mysql');
-var connection = mysql.createConnection({
-     host: '360tv.net',
-     user: 'root',
-     password: 'Alabama!9044013083828789',
-     database: 'marketmanager'
-});
-
 //GET home route
 app.get('/accountinfo', (req, res,next) => {
      let access_token = JSON.parse(fs.readFileSync("./tda/access_token.json", (err) => { if (err) console.error(err); }))

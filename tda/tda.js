@@ -31,13 +31,8 @@ var futurestestlist = ["/ES","/MYM","/MNQ","/M2K","/MES","/BTC","/KC","/HG","/ZC
 
 
 jsonToQueryString = (json) => {return Object.keys(json).map(function (key) {return (encodeURIComponent(key) +"=" +encodeURIComponent(json[key]));}).join("&");};
-const mysql = require('mysql');
-const con = mysql.createConnection({
-    host: 'localhost',
-    user: 'root',
-    password: 'Alabama!9044013083828789',
-    database: 'marketmanager'
-});
+const mysql = require('../mysql.js');
+
 
 
 var ws = new WebSocket("wss://streamer-ws.tdameritrade.com/ws")
@@ -793,13 +788,7 @@ function dbWrite(data){
 
         //let str = `INSERT INTO data (service,timestamp,content) VALUES ( '${data.service}', ${data.timestamp}, '${mysql_real_escape_string(JSON.stringify(_content))}');`
         //console.log(str)
-        con.query(str, function (error, results, fields) {
-            if (error) { 
-                console.log(error.sql);
-                console.log(moment(Date.now()).format() + error);
-                process.exit();
-            }
-        })
+        mysql.query(str)
     })
     console.log(moment(data.timestamp).format("LTS") + color + ` [${data.service.padEnd(16, " ")}] :: ${JSON.stringify(data.content)}\x1b[37m \x1b[40m`);
 
