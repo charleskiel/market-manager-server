@@ -13,11 +13,11 @@ let _packetcount = 0; function packetcount(){return _packetcount += +1;};
 var account = {}
 var stocks = {}
 var futures = {}
-var activities = {
-    ACTIVES_NASDAQ : [],
-    ACTIVES_NYSE : [],
-    ACTIVES_OPTIONS : [],
-    ACTIVES_OTCBB : []
+var actives = {
+    ACTIVES_NASDAQ : {},
+    ACTIVES_NYSE : {},
+    ACTIVES_OPTIONS : {},
+    ACTIVES_OTCBB : {}
 }
 
 
@@ -147,11 +147,26 @@ module.exports.chains = (symbol) => {
 }
 
 module.exports.status = () => {
-    //let results = {}
-    return new Promise((result, error) => {
-        getdata(`https://api.tdameritrade.com/v1/accounts?fields=positions,orders`)
-            .then((data) => {
+    return {
+        service: "status",
+        timestamp: Date.now(),
+        content: [{
+
+            systemtime: Date.now(),
+            msgcount: _msgcount,
+            packetcount: _packetcount,
+            account: account,
+        }],
+        actives : actives
+    }
+    
+}
+
+function status(){
+    getdata(`https://api.tdameritrade.com/v1/accounts?fields=positions,orders`)
+        .then((data) => {
                 account = data
+                
                 results = {
                     service: "status",
                     timestamp: Date.now(),
@@ -160,21 +175,24 @@ module.exports.status = () => {
                         systemtime: Date.now(),
                         msgcount: _msgcount,
                         packetcount: _packetcount,
-                        account: data
-                    }]
+                        account: data,
+                    }],
+                    actives : actives
+
                 }
                 //console.log(results)
                 dbWrite(results)
-            })
-        result(results).catch((fail) => { error(fail) }
-        )
-    }
-)}
+            }
+            
+    )
+        
+    
+}
 
 module.exports.state = () => {
     return new Promise((result,error) =>{
         result({
-                activities : activities,
+                actives : actives,
                 stocks : stocks,
                 futures: futures,
                 account: account
@@ -431,28 +449,7 @@ function msgRec(msg){
                     case "LEVELONE_FUTURES":
                         m.content.forEach(eq => equityTick(eq));
                         break;
-                    case "ACTIVES_NASDAQ":
-                        var split = m.content[0]["1"].split(";")
-                        //console.log(split)
-                        if (split.length > 1){
-                            var o = {
-                                "timestamp" : m.timestamp,
-                                "ID:" : split[0],
-                                "sampleDuration" : split[1],
-                                "Start Time" : split[2],
-                                "Display Time" : split[3],
-                                "GroupNumber" : split[4],
-                                "groups" : []}
-                                split = (split[6].split(":"))
-                                o.totalVolume = (split[0])
-                                o.groupcount = split[1]
-                                for (let i = 3; i < split.length; i += 3) {
-                                    if (!stocks[split[i]]) stocks[split[i]] = {key : split[i]}
-                                    o.groups.push({symbol: split[i], volume: split[i+1], priceChange: split[i+2]}) 
-                            }
-                            activities.ACTIVES_NASDAQ = [o]
-                        }
-                    case "ACTIVES_NYSE":
+                    case "ACTIVES_NASDAQ":case "ACTIVES_NYSE": case "ACTIVES_OTCBB":
                         var split = m.content[0]["1"].split(";")
                         if (split.length > 1){
                             var o = {
@@ -470,34 +467,40 @@ function msgRec(msg){
                                     if (!stocks[split[i]]) stocks[split[i]] = {key : split[i]}
                                     o.groups.push({symbol: split[i], volume: split[i+1], priceChange: split[i+2]}) 
                             }
-                            activities.ACTIVES_NYSE = [o]
+                            actives[m.service][o.sampleDuration] = o
                             
-                            break;
                         }
+                        break;
                     case "ACTIVES_OPTIONS":
-                        // //console.log(moment(Date.now()).format() + ": OPTIONS Activies")
-                        // //console.log(moment(Date.now()).format() + m)
-                        // var split = m.content[0]["1"].split(";")
-                        // var o = {
-                        // "timestamp" : m.timestamp,
-                        // "ID:" : split[0],
-                        // "sampleDuration" : split[1],
-                        // "Start Time" : split[2],
-                        // "Display Time" : split[3],
-                        // "GroupNumber" : split[4],
-                        // "groups" : []}
+                        //console.log(moment(Date.now()).format() + ": OPTIONS Activies")
+                        console.log(m)
+                        //debugger
+                        m.content.map(act => {
+                            
+                            var split = act["1"].split(";")
+                            var o = {
+                                "timestamp" : m.timestamp,
+                                "ID:" : split[0],
+                                "sampleDuration" : split[1],
+                                "Start Time" : split[2],
+                                "Display Time" : split[3],
+                                "GroupNumber" : split[4],
+                                "groups": []
+                            }
 
-                        // split = (split[6].split(":"))
-                        // o.totalVolume = (split[3])
-                        // o.groupcount = split[1]
-
-                        // for (let i = 3; i < split.length; i += 4) {
-                        //     //if (!this.state[split[i]]) this.stockTickerSubscribe([split[i]])
-                        //     o.groups.push({symbol: split[i], name: split[i+1], volume: split[i+2], percentChange: split[i+3]}) 
-                        // }
-                        
-                        //console.log(moment(Date.now()).format() + `: Default Message: ` + m.service, m);
-                        //console.log(moment(Date.now()).format() + msg);
+                            split = (split[6].split(":"))
+                            o.totalVolume = (split[3])
+                            o.groupcount = split[1]
+                            //o.sampleDuration
+                            for (let i = 3; i < split.length; i += 4) {
+                                //if (!this.state[split[i]]) this.stockTickerSubscribe([split[i]])
+                                o.groups.push({symbol: split[i], name: split[i+1], volume: split[i+2], percentChange: split[i+3]}) 
+                            }
+                            
+                            console.log(moment(Date.now()).format() + `: Default Message: ` + m.service, m);
+                            console.log(moment(Date.now()).format() + m);
+                            actives.ACTIVES_OPTIONS[o.sampleDuration] = o
+                        })
                 }
             });
         }
@@ -542,53 +545,53 @@ function sendMsg(c){
 
 function initStream(){
     sendMsg({
-        "requests": [
-            {
-               "service": "ACTIVES_NASDAQ", 
-               "requestid": requestid(), 
-               "command": "SUBS", 
-               "account": principals.accounts[0].accountId, 
-               "source": principals.streamerInfo.appId, 
-               "parameters": {
-                  "keys": "NASDAQ-ALL", 
-                  "fields": "0,1"
-               }
-            }, 
-            {
-               "service": "ACTIVES_OTCBB", 
-               "requestid": requestid(), 
-               "command": "SUBS", 
-               "account": principals.accounts[0].accountId, 
-               "source": principals.streamerInfo.appId, 
-               "parameters": {
-                  "keys": "OTCBB-ALL", 
-                  "fields": "0,1"
-               }
-            }, 
-            {
-               "service": "ACTIVES_NYSE", 
-               "requestid": requestid(), 
-               "command": "SUBS", 
-               "account": principals.accounts[0].accountId, 
-               "source": principals.streamerInfo.appId, 
-               "parameters": {
-                  "keys": "NYSE-ALL", 
-                  "fields": "0,1"
-               }
-            }, 
-            {
-               "service": "ACTIVES_OPTIONS", 
-               "requestid": requestid(), 
-               "command": "SUBS", 
-               "account": principals.accounts[0].accountId, 
-               "source": principals.streamerInfo.appId,             
-               "parameters": {
-                  "keys": "OPTS-DESC-ALL", 
-                  "fields": "0,1"
-               }
-            }
-        ]
-    })
+		requests: [
+			{
+				service: "ACTIVES_NASDAQ",
+				requestid: requestid(),
+				command: "SUBS",
+				account: principals.accounts[0].accountId,
+				source: principals.streamerInfo.appId,
+				parameters: {
+					keys: "NASDAQ-60,NASDAQ-300,NASDAQ-600,NASDAQ-1800,NASDAQ-3600,NASDAQ-ALL",
+					fields: "0,1",
+				},
+			},
+			{
+				service: "ACTIVES_OTCBB",
+				requestid: requestid(),
+				command: "SUBS",
+				account: principals.accounts[0].accountId,
+				source: principals.streamerInfo.appId,
+				parameters: {
+					keys: "OTCBB-60,OTCBB-300,OTCBB-600,OTCBB-1800,OTCBB-3600,OTCBB-ALL",
+					fields: "0,1",
+				},
+			},
+			{
+				service: "ACTIVES_NYSE",
+				requestid: requestid(),
+				command: "SUBS",
+				account: principals.accounts[0].accountId,
+				source: principals.streamerInfo.appId,
+				parameters: {
+					keys: "NYSE-60,NYSE-300,NYSE-600,NYSE-1800,NYSE-3600,NYSE-ALL",
+					fields: "0,1",
+				},
+			},
+			{
+				service: "ACTIVES_OPTIONS",
+				requestid: requestid(),
+				command: "SUBS",
+				account: principals.accounts[0].accountId,
+				source: principals.streamerInfo.appId,
+				parameters: {
+					keys: "OPTS-DESC-60,OPTS-DESC-300,OPTS-DESC-600,OPTS-DESC-1800,OPTS-DESC-3600,OPTS-DESC-ALL",
+					fields: "0,1",
+				},
+			},
+		],
+    });
     
 }
 
@@ -775,7 +778,7 @@ function dbWrite(data){
             } //Bright Green
         else if (data.service === "status")
         {
-            color = "\x1b[45m";
+            color = "\x1b[93m";
         } //Blue
         else
         {
@@ -794,7 +797,7 @@ function dbWrite(data){
             if (error) { 
                 console.log(error.sql);
                 console.log(moment(Date.now()).format() + error);
-                //process.exit();
+                process.exit();
             }
         })
     })
@@ -830,7 +833,7 @@ function mysql_real_escape_string (str) {
 }
 
 setInterval(module.exports.refresh,(60*60*1000))
-setInterval(module.exports.status,10000)
+setInterval(status,10000)
 //setInterval(module.exports.refresh,(30* (60*60*1000)))
 
 
