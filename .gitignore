@@ -2,3 +2,4 @@ node_modules
 ./data/*
 ./alpaca/api.json
 ./tda/user_principals.json
+./tda/access_token.json
