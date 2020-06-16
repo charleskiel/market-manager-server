@@ -4,3 +4,4 @@ node_modules
 ./coinbase/api.json
 ./tda/user_principals.json
 ./tda/access_token.json
+./mysql.js
