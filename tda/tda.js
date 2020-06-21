@@ -3,6 +3,7 @@ const request = require('request');
 const _ = require('lodash')
 const moment = require('moment');
 const WebSocket = require('websocket').w3cwebsocket;
+const os = require('os')
 
 
 let _requestid = 0; function requestid(){return _requestid += +1;};
@@ -10,6 +11,10 @@ let _msgcount = 0; function msgcount(){return _msgcount += +1;};
 let _packetcount = 0; function packetcount(){return _packetcount += +1;};
 
 
+
+
+function getPriority(pid) { return os.getPriority(pid) }
+function setPriority(id, priority) { return os.setPriority(id, priority) }
 var account = {}
 var stocks = {}
 var futures = {}
@@ -145,13 +150,29 @@ module.exports.status = () => {
     return {
         service: "status",
         timestamp: Date.now(),
-        content: [{
+        os: {
+            type : os.type  ,
+            endiannes : os.endianness,
+            hostname : os.hostname(),
+            networkInterfaces : os.networkInterfaces(),
+            platform : os.platform(),
+            release : os.release(),
+            totalmem : os.totalmem(),
+        },
+        system: {
+            fremem  : os.freemem(),
+            uptime  : os.uptime(),
+            loadavg :  os.loadavg(),
+            uptime  : os.uptime()
+        
+        },
+        app: {
 
             systemtime: Date.now(),
             msgcount: _msgcount,
             packetcount: _packetcount,
             account: account,
-        }],
+        },
         actives : actives
     }
     
@@ -468,7 +489,7 @@ function msgRec(msg){
                         break;
                     case "ACTIVES_OPTIONS":
                         //console.log(moment(Date.now()).format() + ": OPTIONS Activies")
-                        console.log(m)
+                        //console.log(m)
                         //debugger
                         m.content.map(act => {
                             
@@ -492,8 +513,8 @@ function msgRec(msg){
                                 o.groups.push({symbol: split[i], name: split[i+1], volume: split[i+2], percentChange: split[i+3]}) 
                             }
                             
-                            console.log(moment(Date.now()).format() + `: Default Message: ` + m.service, m);
-                            console.log(moment(Date.now()).format() + m);
+                            //console.log(moment(Date.now()).format() + `: Default Message: ` + m.service, m);
+                            //console.log(moment(Date.now()).format() + m);
                             actives.ACTIVES_OPTIONS[o.sampleDuration] = o
                         })
                 }

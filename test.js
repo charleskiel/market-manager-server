@@ -47,17 +47,17 @@ function mysql_real_escape_string (str) {
 	return str.replace(/[\0\x08\x09\x1a\n\r"'\\\%]/g, function (char) {
 	    switch (char) {
 		   case "\0":
-			  return "\\0";
+			  return "\\0";break;
 		   case "\x08":
-			  return "\\b";
+			  return "\\b";break;
 		   case "\x09":
-			  return "\\t";
+			  return "\\t";break;
 		   case "\x1a":
-			  return "\\z";
+			  return "\\z";break;
 		   case "\n":
-			  return "\\n";
+			  return "\\n";break;
 		   case "\r":
-			  return "\\r";
+			  return "\\r";break;
 		   case "\"":
 		   case "'":
 		   case "\\":
