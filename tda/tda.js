@@ -4,6 +4,7 @@ const _ = require('lodash')
 const moment = require('moment');
 const WebSocket = require('websocket').w3cwebsocket;
 const os = require('os')
+const mysql = require('../mysql.js');
 
 
 let _requestid = 0; function requestid(){return _requestid += +1;};
@@ -31,12 +32,11 @@ let access_token =  JSON.parse(fs.readFileSync('./tda/access_token.json'))
 let accountInfo =  JSON.parse(fs.readFileSync('./tda/account_info.json'))
 let principals = JSON.parse(fs.readFileSync('./tda/user_principals.json'))
 //function principals(){ JSON.parse(fs.readFileSync('./tda/user_principals.json'), (err) => { if (err) console.error(err); })}
-var stocktestlist = ["QQQ","SPY","GLD","AMD","HD","NVDA","ACB","WMT","BJ","TGT","MSFT","NVDA","ROKU","NFLX","ADBE","SHOP","TSLA","GOOG","AMZN","JNJ","BYND","SMH","MU","LOW","DIS","FDX","CAT","MMM","UPS","YUM","DLTR","BANK","BBY"]
-var futurestestlist = ["/ES","/MYM","/MNQ","/M2K","/MES","/BTC","/KC","/HG","/ZC","/HE","/GC","/M6A","/M63","/M6B","/ZT","/ZN","/ZB","/ZF","/6A","/6B","/6C","/6E","/6N","/NG","/LE","/YM","/YG","/QM","/NG","/PL","/SI","/DX","/TN"]
-
+var stocktestlist = []
+var futurestestlist = ["/ES","/MYM","/MNQ","/M2K","/MES","/BTC"]
+var msgPeice = ""
 
 jsonToQueryString = (json) => {return Object.keys(json).map(function (key) {return (encodeURIComponent(key) +"=" +encodeURIComponent(json[key]));}).join("&");};
-const mysql = require('../mysql.js');
 
 
 
@@ -69,6 +69,23 @@ module.exports.load = function() {
         }
     )}
     ws.onmessage = function (event) {
+
+        if (event.data.charAt(0) === "{" && event.data.charAt(event.data.length - 1) === "}") {
+            msgPeice = ""
+        }
+        else if (event.data.charAt(0) === "{" && event.data.charAt(event.data.length - 1) != "}")
+        {
+            msgPeice += event.data
+        }
+        else if (event.data.charAt(0) != "{" && event.data.charAt(event.data.length - 1) === "}")
+        { 
+            event.data = msgPeice + event.data
+        }
+            
+
+        event.data = event.data.replace(` "C" `, ` -C- `)
+
+
         try {
             //console.log(event.data)
             msgRec(JSON.parse(event.data));
@@ -443,7 +460,8 @@ function credentials () {
 
 
 function msgRec(msg){
-    //sendToClients(msg)
+    sendToClients(msg)
+    //console.log(msg)
     packetcount()
     if (msg.notify) {
         console.log("\x1b[36m%s\x1b[0m", moment.unix(msg.notify[0].heartbeat).format("LTS") + ` [${"Heartbeat".padEnd(16, " ")}] :: heartbeat: ${moment.unix(msg.notify[0].heartbeat).format("LLLL")}`);
@@ -741,7 +759,7 @@ function subscribe(){
 
 
 function equityTick(tick){
-    //console.log(moment(Date.now()).format() + tick)
+    if (tick.key === "TWTR") console.log(`${moment(Date.now()).format()}:   ${tick['11']}`)
     stocks[tick.key] = {...stocks[tick.key],...tick}
 };
 
@@ -811,7 +829,7 @@ function dbWrite(data){
         //console.log(str)
         mysql.query(str)
     })
-    console.log(moment(data.timestamp).format("LTS") + color + ` [${data.service.padEnd(16, " ")}] :: ${JSON.stringify(data.content)}\x1b[37m \x1b[40m`);
+    //console.log(moment(data.timestamp).format("LTS") + color + ` [${data.service.padEnd(16, " ")}] :: ${JSON.stringify(data.content)}\x1b[37m \x1b[40m`);
 
 }
 
@@ -883,10 +901,8 @@ console.log(socket)
                 case "ADMIN":
                     if (m.command === "LOGIN" && m.username === "demo" && m.password === "password")
                         {
-                            clientSockets[m.username] = socket
+                            clientSockets[socket] = m.username
                             sendToClient(socket,{hello: "Hello!"})
-                            //socket.send(JSON.stringify(clientSockets[socket]))
-                            //console.log(`Logged in: ${results[0].regtoken}] ${results[0].FirstName} ${results[0].LastName}`)
                         }
                 }
             }
@@ -932,13 +948,13 @@ console.log(socket)
 
 
 function sendToClient(socket,message) {
-    console.log(clientSockets["demo"])
+    console.log(clientSockets[socket])
     console.log(`message=> ${JSON.stringify(message)}`)
     
 	
-		if (clientSockets["demo"].readyState === 1 ){
+		if (clientSockets[socket].readyState === 1 ){
 			//console.log(`message=====> ${JSON.stringify(message)}`)
-            clientSockets["demo"].send(JSON.stringify(message))
+            clientSockets[socket].send(JSON.stringify(message))
         }
     	
 }
@@ -948,7 +964,7 @@ function sendToClient(socket,message) {
 function sendToClients(message) {
 	//console.log(`message=> ${JSON.stringify(message)}`)
 	clientSocket.clients.forEach( client => {
-		if (client !== clientSocket && client.readyState === 1 ){
+		if ( client.readyState === 1 ){
 			//console.log(`message=====> ${JSON.stringify(message)}`)
           	client.send(JSON.stringify(message))
         	}
