@@ -1,12 +1,9 @@
 const fs = require('fs');
 const Alpaca = require('@alpacahq/alpaca-trade-api')
+const auth = JSON.parse(fs.readFileSync("./alpaca.json", (err) => { if (err) console.error(err); }))
 
-const alpaca = new Alpaca({
-	keyId: 'PKO9GWMZK2KN2WSMUG6U',
-	secretKey: 'e28zy2JsJ2jxzpz67y7nD9cyxiO050nyFOtvwRME',
-	paper: true,
-	usePolygon: false
-   })
+
+const alpaca = new Alpaca(auth)
 
 
 
