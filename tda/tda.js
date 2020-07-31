@@ -133,6 +133,8 @@ module.exports.load = function() {
             
 
         event.data = event.data.replace(` "C" `, ` -C- `)
+        event.data = event.data.replace(` "C" `, ` -C- `)
+        event.data = event.data.replace(` "C" `, ` -C- `)
 
 
         try {
