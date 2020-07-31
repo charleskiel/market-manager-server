@@ -116,6 +116,11 @@ app.get('/status', (req, res) => {
      res.send(JSON.stringify(tda.status(), undefined, 4));
 });
 
+app.get('/accountStatus', (req, res) => {
+     console.log(tda.accountStatus());
+     res.send(JSON.stringify(tda.status(), undefined, 4));
+});
+
 app.get('/getWatchlists', (req, res) => {
      tda.getWatchlists().then(data => {
           console.log(`Sucuess: ${data}`)
