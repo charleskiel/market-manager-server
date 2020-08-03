@@ -1,4 +1,9 @@
 node_modules
+<<<<<<< HEAD
 auth
 data
+=======
+data
+auth
+>>>>>>> bfbae021ef9e8a29d5e9465ab2a0c12dbde0ded4
 mysql.js

@@ -4,6 +4,7 @@ const _ = require('lodash')
 const moment = require('moment');
 const WebSocket = require('websocket').w3cwebsocket;
 const os = require('os')
+const mysql = require('../mysql.js');
 
 
 let _requestid = 0; function requestid(){return _requestid += +1;};
@@ -11,6 +12,12 @@ let _msgcount = 0; function msgcount(){return _msgcount += +1;};
 let _packetcount = 0; function packetcount(){return _packetcount += +1;};
 
 
+
+var futuresList = [];
+var stockList = [];
+var indexList = [];
+var eftList = [];
+var optionList = [];
 
 
 function getPriority(pid) { return os.getPriority(pid) }
@@ -31,12 +38,59 @@ let access_token =  JSON.parse(fs.readFileSync('./auth/access_token.json'))
 let accountInfo =  JSON.parse(fs.readFileSync('./auth/account_info.json'))
 let principals = JSON.parse(fs.readFileSync('./auth/user_principals.json'))
 //function principals(){ JSON.parse(fs.readFileSync('./auth/user_principals.json'), (err) => { if (err) console.error(err); })}
+<<<<<<< HEAD
 var stocktestlist = ["QQQ","SPY","GLD","AMD","HD","NVDA","ACB","WMT","BJ","TGT","MSFT","NVDA","ROKU","NFLX","ADBE","SHOP","TSLA","GOOG","AMZN","JNJ","BYND","SMH","MU","LOW","DIS","FDX","CAT","MMM","UPS","YUM","DLTR","BANK","BBY"]
 var futurestestlist = ["/ES","/MYM","/MNQ","/M2K","/MES","/BTC","/KC","/HG","/ZC","/HE","/GC","/M6A","/M63","/M6B","/ZT","/ZN","/ZB","/ZF","/6A","/6B","/6C","/6E","/6N","/NG","/LE","/YM","/YG","/QM","/NG","/PL","/SI","/DX","/TN"]
+=======
+var monitor = {
+    add : (items) =>{
+        let equitiesChange = false
+        let indexesChange = false
+        let futuresChange = false
+        let optionsChange = false
+        items.map(key => {
+            if (!monitor.list[key])
+            monitor.list[key] = {key: key}
+            let type = isType(key)
+            if (type == "equities" || type == "indexes" ) {indexesChange = true}
+            if (type == "futures" ) {futuresChange = true}
+            if (type == "options" ) {optionsChange = true}
+        })
+        if (equitiesChange) sendServiceMsg("equities",[...monitor.equities(),...monitor.indexes()])
+        if (futuresChange) sendServiceMsg("futures",monitor.futures())
+        if (optionsChange) sendServiceMsg("options",monitor.options())
+    },
+    remove : (items) =>{
+        let change = false
+        items.map(key => {
+            if (monitor.list[key]) 
+            delete monitor.list[key]
+            change = true
+        }
+    )},
+    list : ["/ES","/NQ","/MYM","/GC","/SI","/PL","HG","/BTC","/DX"],
+    equities: () => { return _.keys(monitor.list).filter(key => (!key.includes("$") && !key.includes("/")  && key.length < 6 ) )},
+    indexes : () => { return _.keys(monitor.list).filter(key => (key.includes("$") && !key.includes("/") ) )},
+    futures : () => { return _.keys(monitor.list).filter(key => (!key.includes("$") && key.includes("/") ) )},
+    options : () => { return _.keys(monitor.list).filter(key => (!key.includes("$") && !key.includes("/") && key.length > 5 ) )}
+}
+>>>>>>> bfbae021ef9e8a29d5e9465ab2a0c12dbde0ded4
 
+function isType(key){
+    //console.log(key)
+    try {
+        if (!key.includes("$") && !key.includes("/")  && key.length < 6 ) return "equities"
+        if (key.includes("$") && !key.includes("/") ) return "indexes"
+        if (!key.includes("$") && key.includes("/") ) return "futures"
+        if (!key.includes("$") && !key.includes("/") && key.length > 5 ) return "options"
+    }
+    catch{
+        debugger
+    }
+}
+var msgPeice = ""
 
 jsonToQueryString = (json) => {return Object.keys(json).map(function (key) {return (encodeURIComponent(key) +"=" +encodeURIComponent(json[key]));}).join("&");};
-const mysql = require('../mysql.js');
 
 
 
@@ -69,6 +123,25 @@ module.exports.load = function() {
         }
     )}
     ws.onmessage = function (event) {
+
+        if (event.data.charAt(0) === "{" && event.data.charAt(event.data.length - 1) === "}") {
+            msgPeice = ""
+        }
+        else if (event.data.charAt(0) === "{" && event.data.charAt(event.data.length - 1) !== "}")
+        {
+            msgPeice += event.data
+        }
+        else if (event.data.charAt(0) !== "{" && event.data.charAt(event.data.length - 1) === "}")
+        { 
+            event.data = msgPeice + event.data
+        }
+            
+
+        event.data = event.data.replace(` "C" `, ` -C- `)
+        event.data = event.data.replace(` "C" `, ` -C- `)
+        event.data = event.data.replace(` "C" `, ` -C- `)
+
+
         try {
             //console.log(event.data)
             msgRec(JSON.parse(event.data));
@@ -99,7 +172,9 @@ module.exports.refresh = () => {
     validatetoken()
     validateprincipals()
     refreshAccessToken()
-    module.exports.getWatchlists().then(data => {console.log(data);})
+    module.exports.getWatchlists().then(data => {
+        //console.log(data);
+    })
 }
     
 function errorHandler(err, req, res, next){
@@ -181,37 +256,45 @@ module.exports.status = () => {
 function status(){
     getdata(`https://api.tdameritrade.com/v1/accounts?fields=positions,orders`)
         .then((data) => {
-                account = data
-                
-                results = {
-                    service: "status",
-                    timestamp: Date.now(),
-                    content: [{
-
-                        systemtime: Date.now(),
-                        msgcount: _msgcount,
-                        packetcount: _packetcount,
-                        account: data,
-                    }],
-                    actives : actives
-
-                }
-                //console.log(results)
-                dbWrite(results)
-            }
+            account = data
             
+            results = {
+                service: "status",
+                timestamp: Date.now(),
+                content: [{
+                    systemtime: Date.now(),
+                    msgcount: _msgcount,
+                    packetcount: _packetcount,
+                    databaseWriteCount: mysql.writecount,
+                    account: data,
+                }],
+                actives : actives
+            }
+            dbWrite(results)
+            watchPositions()
+        }
     )
-        
-    
+}
+module.exports.accountStatus = () => {
+    getdata(`https://api.tdameritrade.com/v1/accounts?fields=positions,orders`)
+        .then((data) => {
+            account = data
+            watchPositions()
+            console.log(account[0].securitiesAccount.positions)
+        }
+    )
 }
 
+function watchPositions(){
+    //console.log(account[0].securitiesAccount.positions.map(p => p.instrument.symbol))
+    monitor.add(account[0].securitiesAccount.positions.map(p => p.instrument.symbol))
+}
 module.exports.state = () => {
     return new Promise((result,error) =>{
         result({
                 actives : actives,
-                stocks : stocks,
-                futures: futures,
-                account: account
+                stocks : monitor.list(),
+                account
             })
         error(fail)
     })
@@ -220,28 +303,24 @@ module.exports.state = () => {
 module.exports.getWatchlists = () => {
     return new Promise((result,error) =>{
         getdata(`https://api.tdameritrade.com/v1/accounts/${JSON.parse(fs.readFileSync('./auth/user_principals.json')).accounts[0].accountId }/watchlists`)
+
             .then((data) => {
-                console.log(moment(Date.now()).format() + `: Sucuess: ${data.length}`)
+                console.log(moment(Date.now()).format(), `: Got ${data.length} watchlists`)
                 //debugger
                 watchlists = data
-                
+                //console.log(watchlists)
+                let list = []
                 data.map(_list => {
                     _list.watchlistItems.map(_item => {
-                        if (_item.instrument.symbol.includes("/")){
-                            futureslist = [...futureslist,_item.instrument.symbol]
-                        }else{
-                            stocklist = [...stocklist,_item.instrument.symbol]
-                        }
+                        list.push(_item.instrument.symbol)
                     })
                 })
-
-                stocklist.map(_key => {if (!stocks[_key]) stocks[_key] = {key:_key}})
-                if (futureslist.length > 0) futureslist.map(_key => {if (!futures[_key]) futures[_key] = {key:_key}})
-                if (futurestestlist.length > 0) futurestestlist.map(_key => {if (!futures[_key]) futures[_key] = {key:_key}})
+                monitor.add(list)
+                console.log(`${_.keys(monitor.equities()).length} equities in Watchlists`)
+                console.log(`${_.keys(monitor.futures()).length} futures in Watchlists`)
+                console.log(`${_.keys(monitor.indexes()).length} indexes in Watchlists`)
                 result(data)
-
-            }).catch(
-                (fail) => {error(fail)})
+            })
     })
 }
 
@@ -250,7 +329,7 @@ module.exports.getWatchlists = () => {
 
 
 function getdata(endpoint){
-    console.log(moment(Date.now()).format() + endpoint)
+    //console.log(moment(Date.now()).format() + endpoint)
     return new Promise((result, fail) => {
         const options = {
             headers: getAuthorizationHeader(),
@@ -273,7 +352,7 @@ function getdata(endpoint){
                 switch (response.statusCode) {
                     case 401:
                         console.log(moment(Date.now()).format() + ': 401 hint: refresh token');
-                        //console.log(moment(Date.now()).format() + refreshAccessToken)
+                        console.log(moment(Date.now()).format(), refreshAccessToken)
                         module.exports.refresh();
                         break;
                     default:
@@ -443,7 +522,8 @@ function credentials () {
 
 
 function msgRec(msg){
-    //sendToClients(msg)
+    sendToClients(msg)
+    console.log(msg)
     packetcount()
     if (msg.notify) {
         console.log("\x1b[36m%s\x1b[0m", moment.unix(msg.notify[0].heartbeat).format("LTS") + ` [${"Heartbeat".padEnd(16, " ")}] :: heartbeat: ${moment.unix(msg.notify[0].heartbeat).format("LLLL")}`);
@@ -494,28 +574,30 @@ function msgRec(msg){
                         m.content.map(act => {
                             
                             var split = act["1"].split(";")
-                            var o = {
-                                "timestamp" : m.timestamp,
-                                "ID:" : split[0],
-                                "sampleDuration" : split[1],
-                                "Start Time" : split[2],
-                                "Display Time" : split[3],
-                                "GroupNumber" : split[4],
-                                "groups": []
+                            if (split[1].length > 1) {
+                                var o = {
+                                    "timestamp" : m.timestamp,
+                                    "ID:" : split[0],
+                                    "sampleDuration" : split[1],
+                                    "Start Time" : split[2],
+                                    "Display Time" : split[3],
+                                    "GroupNumber" : split[4],
+                                    "groups": []
+                                }
+    
+                                split = (split[6].split(":"))
+                                o.totalVolume = (split[3])
+                                o.groupcount = split[1]
+                                //o.sampleDuration
+                                for (let i = 3; i < split.length; i += 4) {
+                                    //if (!this.state[split[i]]) this.stockTickerSubscribe([split[i]])
+                                    o.groups.push({symbol: split[i], name: split[i+1], volume: split[i+2], percentChange: split[i+3]}) 
+                                }
+                                
+                                //console.log(moment(Date.now()).format() + `: Default Message: ` + m.service, m);
+                                //console.log(moment(Date.now()).format() + m);
+                                actives.ACTIVES_OPTIONS[o.sampleDuration] = o
                             }
-
-                            split = (split[6].split(":"))
-                            o.totalVolume = (split[3])
-                            o.groupcount = split[1]
-                            //o.sampleDuration
-                            for (let i = 3; i < split.length; i += 4) {
-                                //if (!this.state[split[i]]) this.stockTickerSubscribe([split[i]])
-                                o.groups.push({symbol: split[i], name: split[i+1], volume: split[i+2], percentChange: split[i+3]}) 
-                            }
-                            
-                            //console.log(moment(Date.now()).format() + `: Default Message: ` + m.service, m);
-                            //console.log(moment(Date.now()).format() + m);
-                            actives.ACTIVES_OPTIONS[o.sampleDuration] = o
                         })
                 }
             });
@@ -555,185 +637,139 @@ function msgRec(msg){
 };
 
 function sendMsg(c){
-    console.log(moment(Date.now()).format() + `: Sending: ${JSON.stringify(c)}`);
+    console.log(moment(Date.now()).format() + `: Sending:` ,c);
     ws.send(JSON.stringify(c));
 };
+function sendServiceMsg(_type,_keys,){
+    switch (_type){
+        
+        case "equities":
+        case "indexes" :
+            console.log(moment(Date.now()).format() + `: Subscribing to ${monitor.equities().length} stocks `)
+            sendMsg({
+                requests: [{
+                    service : "QUOTE", requestid: requestid(), command : "SUBS", account : principals.accounts[0].accountId, source : principals.streamerInfo.appId,
+                    parameters : {
+                        keys: _keys.toString(),
+                        fields : "0,1,2,3,8,9,10,11,12,13,14,15,16,17,18,24,25,28,29,30,31,40,49"
+                    }
+                }]
+            })
+            sendMsg({
+                requests: [{
+                    service : "CHART_EQUITY", requestid: requestid(), command : "SUBS", account : principals.accounts[0].accountId, source : principals.streamerInfo.appId,
+                    parameters : {
+                        keys: _keys.toString(),
+                        fields : "0,1,2,3,4,5,6,7,8"
+                    }
+                }]
+            })
+            
+                
+            sendMsg({
+                requests: [{
+                    service : "TIMESALE_EQUITY", requestid : "2", command : "SUBS", account : "your_account0", source : "your_source_id",
+                    parameters : {
+                        keys: _keys.toString(),
+                        fields : "0,1,2,3,4"
+                        }
+                }]
+            });
+        
+            sendMsg({
+                requests: [{
+                    service : "NEWS_HEADLINE", requestid: requestid(), command : "SUBS", account : principals.accounts[0].accountId, source : principals.streamerInfo.appId,
+                    parameters : {
+                        keys: _keys.toString(),
+                        fields : "0,1,2,3,4,5,6,7,8,9,10"
+                    }
+                }]
+            })
+            break;
+        case "futures" :
+            console.log(moment(Date.now()).format() + `: Subscribing to ${monitor.futures().length} futures `)
+            sendMsg({
+                requests: [{
+                    service : "CHART_FUTURES", requestid: requestid(), command : "SUBS", account : principals.accounts[0].accountId,  source : principals.streamerInfo.appId,    
+                    parameters : {
+                        keys: monitor.futures().toString(),
+                        fields : "0,1,2,3,4,5,6,7"
+                    }
+                }]
+            })
+                    
+            sendMsg({
+                requests: [{
+                    service : "LEVELONE_FUTURES", requestid : requestid(), command : "SUBS", account : principals.accounts[0].accountId,  source : principals.streamerInfo.appId,    
+                    parameters : {
+                        keys: monitor.futures().toString(),
+                        fields : "0,1,2,3,4,8,9,12,13,14,16,18,19,20,23,24,25,26,27,28,31"
+                    }
+                
+                }]
+            })
+            
+            sendMsg({
+                requests: [{
+                    service : "TIMESALE_FUTURES", requestid: requestid(), command : "SUBS", account : principals.accounts[0].accountId,  source : principals.streamerInfo.appId,    
+                    parameters : {
+                        keys: monitor.futures().toString(),
+                        fields : "0,1,2,3,4"
+                    }
+                }]
+            })
+        
+            break;
+        case "options" :
+            break;
+        case "ACTIVES_OTCBB":
+        case "ACTIVES_NYSE":
+        case "ACTIVES_NASDAQ":
+        case "ACTIVES_OPTIONS":
+            sendMsg({
+                requests: [
+                    {
+                        service: _type,
+                        requestid: requestid(),
+                        command: "SUBS",
+                        account: principals.accounts[0].accountId,
+                        source: principals.streamerInfo.appId,
+                        parameters: {
+                            keys: _keys.toString(),
+                            fields: "0,1",
+                        },
+                    }
+                ]
+            })
+
+    }
+
+}
 
 function initStream(){
-    sendMsg({
-		requests: [
-			{
-				service: "ACTIVES_NASDAQ",
-				requestid: requestid(),
-				command: "SUBS",
-				account: principals.accounts[0].accountId,
-				source: principals.streamerInfo.appId,
-				parameters: {
-					keys: "NASDAQ-60,NASDAQ-300,NASDAQ-600,NASDAQ-1800,NASDAQ-3600,NASDAQ-ALL",
-					fields: "0,1",
-				},
-			},
-			{
-				service: "ACTIVES_OTCBB",
-				requestid: requestid(),
-				command: "SUBS",
-				account: principals.accounts[0].accountId,
-				source: principals.streamerInfo.appId,
-				parameters: {
-					keys: "OTCBB-60,OTCBB-300,OTCBB-600,OTCBB-1800,OTCBB-3600,OTCBB-ALL",
-					fields: "0,1",
-				},
-			},
-			{
-				service: "ACTIVES_NYSE",
-				requestid: requestid(),
-				command: "SUBS",
-				account: principals.accounts[0].accountId,
-				source: principals.streamerInfo.appId,
-				parameters: {
-					keys: "NYSE-60,NYSE-300,NYSE-600,NYSE-1800,NYSE-3600,NYSE-ALL",
-					fields: "0,1",
-				},
-			},
-			{
-				service: "ACTIVES_OPTIONS",
-				requestid: requestid(),
-				command: "SUBS",
-				account: principals.accounts[0].accountId,
-				source: principals.streamerInfo.appId,
-				parameters: {
-					keys: "OPTS-DESC-60,OPTS-DESC-300,OPTS-DESC-600,OPTS-DESC-1800,OPTS-DESC-3600,OPTS-DESC-ALL",
-					fields: "0,1",
-				},
-			},
-		],
-    });
-    
+    sendServiceMsg("ACTIVES_NASDAQ",["NASDAQ-60","NASDAQ-300","NASDAQ-600","NASDAQ-1800","NASDAQ-3600","NASDAQ-ALL"])
+    sendServiceMsg("ACTIVES_OTCBB",["OTCBB-60","OTCBB-300","OTCBB-600","OTCBB-1800","OTCBB-3600","OTCBB-ALL"])
+    sendServiceMsg("ACTIVES_NYSE",["NYSE-60","NYSE-300","NYSE-600","NYSE-1800","NYSE-3600","NYSE-ALL"])
+    sendServiceMsg("ACTIVES_OPTIONS",["OPTS-DESC-60,OPTS-DESC-300,OPTS-DESC-600,OPTS-DESC-1800,OPTS-DESC-3600,OPTS-DESC-ALL"])
+
+    // sendMsg({
+    //     requests: [
+    //         {
+    //             service: "ADMIN",
+    //             requestid: requestid(),
+    //             command: "SUBS",
+    //             account: principals.accounts[0].accountId,
+    //             source: principals.streamerInfo.appId,
+    //             parameters: {"qoslevel": "5"},
+    //         },
+    //     ],
+    // });
 }
 
 var watchlists = {}
 
-var futureslist = []
-var stocklist = []
 function subscribe(){
-        console.log(moment(Date.now()).format() + `: Subscribing to ${[...stocklist,...stocktestlist].length} stocks `)
-        
-        sendMsg({
-            requests: [{
-                service: "QUOTE",
-                requestid: requestid(),
-                command: "SUBS",
-                account: principals.accounts[0].accountId,
-                source: principals.streamerInfo.appId,
-                parameters: {
-                    //keys: [..._.keys(stocks).map(stock => stock.key), ...keys].toString(),
-                    keys: [...stocklist,...stocktestlist].toString(),
-                    fields: "0,1,2,3,8,9,10,11,12,13,14,15,16,17,18,24,25,28,29,30,31,40,49",
-                }
-            }]
-        })
-                        
-        sendMsg({
-            requests: [{
-                service: "CHART_EQUITY",
-                requestid: requestid(),
-                command: "SUBS",
-                account: principals.accounts[0].accountId,
-                source: principals.streamerInfo.appId,
-                parameters: {
-                    keys: [...stocklist,...stocktestlist].toString(),
-                    fields: "0,1,2,3,4,5,6,7,8"
-                }
-            }]
-        })
-
-        sendMsg({
-            requests: [{
-                service : "NEWS_HEADLINE",
-                requestid: requestid(),
-                command : "SUBS",
-                account : principals.accounts[0].accountId, 
-                source : principals.streamerInfo.appId,    
-                parameters : {
-                    keys: [...stocklist,...stocktestlist].toString(),
-                    fields : "0,1,2,3,4,5,6,7,8,9,10"
-                }
-            }]
-        })
-                
-        // sendMsg({
-        //     requests: [{
-        //             service : "TIMESALE_EQUITY",
-        //             requestid : "2",
-        //             command : "SUBS",
-        //             account : "your_account0",
-        //             source : "your_source_id",
-        //             parameters : {
-        //                 keys: [...stocklist,...stocktestlist].toString(),
-        //                 fields : "0,1,2,3,4"
-        //                 }
-        //     }]
-        // });
-    
-   
-        console.log(moment(Date.now()).format() + `: Subscribing to ${futurestestlist.length} futures `)
-        
-        sendMsg({
-            requests: [{
-                service : "CHART_FUTURES",
-                requestid: requestid(),
-                command : "SUBS",
-                account : principals.accounts[0].accountId, 
-                source : principals.streamerInfo.appId,    
-                parameters : {
-                    keys: futurestestlist.toString(),
-                    fields : "0,1,2,3,4,5,6,7"
-                }
-            }]
-        })
-                
-        sendMsg({
-            requests: [{
-                    service : "LEVELONE_FUTURES",
-                    requestid : requestid(),
-                    command : "SUBS",
-                    account : principals.accounts[0].accountId, 
-                    source : principals.streamerInfo.appId,    
-                    parameters : {
-                        keys: futurestestlist.toString(),
-                        fields : "0,1,2,3,4,8,9,12,13,14,16,18,19,20,23,24,25,26,27,28,31"
-                    }
-                
-            }]
-        })
-        
-        sendMsg({
-            requests: [{
-                    service : "TIMESALE_FUTURES",
-                    requestid: requestid(),
-                    command : "SUBS",
-                    account : principals.accounts[0].accountId, 
-                    source : principals.streamerInfo.appId,    
-                    parameters : {
-                        keys: futurestestlist.toString(),
-                        fields : "0,1,2,3,4"
-                    }
-                }
-            ]
-        })
-    
-        // sendMsg({
-        //     requests: [
-        //         {
-        //             service: "ADMIN",
-        //             requestid: requestid(),
-        //             command: "SUBS",
-        //             account: principals.accounts[0].accountId,
-        //             source: principals.streamerInfo.appId,
-        //             parameters: {"qoslevel": "5"},
-        //         },
-        //     ],
-        // });
+      
     
     
 
@@ -741,7 +777,7 @@ function subscribe(){
 
 
 function equityTick(tick){
-    //console.log(moment(Date.now()).format() + tick)
+    if (tick.key === "TWTR") console.log(`${moment(Date.now()).format()}:   ${tick['11']}`)
     stocks[tick.key] = {...stocks[tick.key],...tick}
 };
 
@@ -750,7 +786,7 @@ function equityTick(tick){
 function dbWrite(data){
     let color = ""
     data.content.map(_content =>{
-
+        let str = ""
         //console.log(moment(data.timestamp).format("h:mm:ss a") + `: INSERT INTO data (service,timestamp,content) VALUES ( '${data.service}', ${data.timestamp}, '${JSON.stringify(data.content)}');`);
         if (data.service === "ACTIVES_NYSE") {
             str = "INSERT INTO `" + data.service + "` (timestamp,content) VALUES (" + data.timestamp + ",'"+ mysql_real_escape_string(JSON.stringify(_content)) + "');"
@@ -809,9 +845,9 @@ function dbWrite(data){
 
         //let str = `INSERT INTO data (service,timestamp,content) VALUES ( '${data.service}', ${data.timestamp}, '${mysql_real_escape_string(JSON.stringify(_content))}');`
         //console.log(str)
-        mysql.query(str)
+        if (str) mysql.query(str)
     })
-    console.log(moment(data.timestamp).format("LTS") + color + ` [${data.service.padEnd(16, " ")}] :: ${JSON.stringify(data.content)}\x1b[37m \x1b[40m`);
+    //console.log(moment(data.timestamp).format("LTS") + color + ` [${data.service.padEnd(16, " ")}] :: ${JSON.stringify(data.content)}\x1b[37m \x1b[40m`);
 
 }
 
@@ -843,7 +879,7 @@ function mysql_real_escape_string (str) {
 }
 
 setInterval(module.exports.refresh,(60*60*1000))
-setInterval(status,10000)
+setInterval(status,1000)
 //setInterval(module.exports.refresh,(30* (60*60*1000)))
 
 
@@ -859,6 +895,7 @@ setInterval(status,10000)
 
 
 const https = require('https');
+const { send } = require('process');
 var httpsServer = https.createServer({
     key: fs.readFileSync('/etc/letsencrypt/live/charleskiel.dev/privkey.pem', 'utf8'),
     cert: fs.readFileSync('/etc/letsencrypt/live/charleskiel.dev/cert.pem', 'utf8')
@@ -883,10 +920,8 @@ console.log(socket)
                 case "ADMIN":
                     if (m.command === "LOGIN" && m.username === "demo" && m.password === "password")
                         {
-                            clientSockets[m.username] = socket
+                            clientSockets[socket] = m.username
                             sendToClient(socket,{hello: "Hello!"})
-                            //socket.send(JSON.stringify(clientSockets[socket]))
-                            //console.log(`Logged in: ${results[0].regtoken}] ${results[0].FirstName} ${results[0].LastName}`)
                         }
                 }
             }
@@ -932,13 +967,13 @@ console.log(socket)
 
 
 function sendToClient(socket,message) {
-    console.log(clientSockets["demo"])
+    console.log(clientSockets[socket])
     console.log(`message=> ${JSON.stringify(message)}`)
     
 	
-		if (clientSockets["demo"].readyState === 1 ){
+		if (clientSockets[socket].readyState === 1 ){
 			//console.log(`message=====> ${JSON.stringify(message)}`)
-            clientSockets["demo"].send(JSON.stringify(message))
+            clientSockets[socket].send(JSON.stringify(message))
         }
     	
 }
@@ -946,10 +981,10 @@ function sendToClient(socket,message) {
 
 
 function sendToClients(message) {
-	//console.log(`message=> ${JSON.stringify(message)}`)
+	console.log(message)
 	clientSocket.clients.forEach( client => {
-		if (client !== clientSocket && client.readyState === 1 ){
-			//console.log(`message=====> ${JSON.stringify(message)}`)
+		if ( client.readyState === 1 ){
+			console.log(JSON.stringify(message))
           	client.send(JSON.stringify(message))
         	}
     	});

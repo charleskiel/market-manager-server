@@ -1,10 +1,9 @@
 
 var moment = require('moment');
 const tda =  require('./tda/tda.js')
-// var alpaca = require('./alpaca/alpaca.js')
-// var coinbase = require('./coinbase/coinbase')
+//var alpaca = require('./alpaca/alpaca.js')
+//var coinbase = require('./coinbase/coinbase')
 //var reddit = require('./reddit/reddit')
-//import * as Tda from './tda_auth.js'
 
 //alpaca.refresh()
 const fetch = require('node-fetch');
@@ -15,9 +14,7 @@ const bodyParser = require('body-parser');
 app.use(function(req, res, next) {
      res.header("Access-Control-Allow-Origin", "*");
      res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
-     //console.log(req.body);
-     //console.log(req.query);
-
+cd
      next();
 });
 //app.use(bodyParser.urlencoded({ extended: true }));
@@ -113,6 +110,11 @@ app.get('/state', (req, res) => {
 });
 
 app.get('/status', (req, res) => {
+     res.send(JSON.stringify(tda.status(), undefined, 4));
+});
+
+app.get('/accountStatus', (req, res) => {
+     console.log(tda.accountStatus());
      res.send(JSON.stringify(tda.status(), undefined, 4));
 });
 
