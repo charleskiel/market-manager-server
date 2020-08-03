@@ -32,7 +32,7 @@ var actives = {
     ACTIVES_OTCBB : {}
 }
 
-
+let connected = false
 let refreshTokenInfo =  JSON.parse(fs.readFileSync('./auth/refresh_token.json'))
 let access_token =  JSON.parse(fs.readFileSync('./auth/access_token.json'))
 let accountInfo =  JSON.parse(fs.readFileSync('./auth/account_info.json'))
@@ -45,16 +45,19 @@ var monitor = {
         let futuresChange = false
         let optionsChange = false
         items.map(key => {
-            if (!monitor.list[key])
-            monitor.list[key] = {key: key}
-            let type = isType(key)
-            if (type == "equities" || type == "indexes" ) {indexesChange = true}
-            if (type == "futures" ) {futuresChange = true}
-            if (type == "options" ) {optionsChange = true}
+            if (!monitor.list[key]){
+                monitor.list[key] = {key: key, spark : []}
+                let type = isType(key)
+                if (type == "indexes" ) {indexesChange = true}
+                if (type == "equities") {equitiesChange = true}
+                if (type == "futures" ) {futuresChange = true}
+                if (type == "options" ) {optionsChange = true}
+            }
         })
-        if (equitiesChange) sendServiceMsg("equities",[...monitor.equities(),...monitor.indexes()])
-        if (futuresChange) sendServiceMsg("futures",monitor.futures())
-        if (optionsChange) sendServiceMsg("options",monitor.options())
+        if (optionsChange || indexesChange || futuresChange) { console.log(optionsChange , indexesChange , futuresChange); }
+        if (equitiesChange) {sendServiceMsg("equities",[...monitor.equities(),...monitor.indexes()])}
+        if (futuresChange) {sendServiceMsg("futures",monitor.futures())}
+        if (optionsChange) {sendServiceMsg("options",monitor.options())}
     },
     remove : (items) =>{
         let change = false
@@ -64,7 +67,7 @@ var monitor = {
             change = true
         }
     )},
-    list : ["/ES","/NQ","/MYM","/GC","/SI","/PL","HG","/BTC","/DX"],
+    list : {},
     equities: () => { return _.keys(monitor.list).filter(key => (!key.includes("$") && !key.includes("/")  && key.length < 6 ) )},
     indexes : () => { return _.keys(monitor.list).filter(key => (key.includes("$") && !key.includes("/") ) )},
     futures : () => { return _.keys(monitor.list).filter(key => (!key.includes("$") && key.includes("/") ) )},
@@ -152,14 +155,17 @@ module.exports.load = function() {
         }
 
         //setState({ packetcount: state.packetcount += 1 })
-        //console.log(msg)
+        //console.log(event)
     }
 
     ws.onerror = function(error){
         console.log(error);
     };
     
-    ws.onclose = function () { console.log(moment(Date.now()).format() + ': echo-protocol Connection Closed'); process.exit();}
+    ws.onclose = function () { 
+        console.log(moment(Date.now()).format() + ': echo-protocol Connection Closed');
+        process.exit();
+    }
 }
 
 module.exports.refresh = () => {
@@ -282,14 +288,25 @@ module.exports.accountStatus = () => {
 
 function watchPositions(){
     //console.log(account[0].securitiesAccount.positions.map(p => p.instrument.symbol))
-    monitor.add(account[0].securitiesAccount.positions.map(p => p.instrument.symbol))
+    if (connected) monitor.add(account[0].securitiesAccount.positions.map(p => p.instrument.symbol))
 }
 module.exports.state = () => {
+    // test = _.values(monitor.list , function (key,value) {
+    //     return [key] = {key : value}}
+    // )
+    // for (var stock in monitor.list){
+    //     console.log(stock)
+    //     console.log(monitor.list[stock])
+    // }
+    // console.log(monitor.list)
+    // console.log(test)
     return new Promise((result,error) =>{
         result({
                 actives : actives,
-                stocks : monitor.list(),
-                account
+                stocks : monitor.list,
+                account,
+                
+                
             })
         error(fail)
     })
@@ -299,7 +316,7 @@ module.exports.getWatchlists = () => {
     return new Promise((result, error) => {
         getdata(`https://api.tdameritrade.com/v1/accounts/${JSON.parse(fs.readFileSync('./auth/user_principals.json')).accounts[0].accountId}/watchlists`)
             .then((data) => {
-                console.log(moment(Date.now()).format(), `: Got ${data.length} watchlists`)
+                //console.log(moment(Date.now()).format(), `: Got  watchlists`)
                 //debugger
                 watchlists = data
                 //console.log(watchlists)
@@ -310,9 +327,7 @@ module.exports.getWatchlists = () => {
                     })
                 })
                 monitor.add(list)
-                console.log(`${_.keys(monitor.equities()).length} equities in Watchlists`)
-                console.log(`${_.keys(monitor.futures()).length} futures in Watchlists`)
-                console.log(`${_.keys(monitor.indexes()).length} indexes in Watchlists`)
+                console.log(`${_.keys(monitor.equities()).length} equities, ${_.keys(monitor.futures()).length} futures, and ${_.keys(monitor.indexes()).length} indexes in ${data.length} Watchlists`)
                 result(data)
             })
     })
@@ -323,7 +338,7 @@ module.exports.getWatchlists = () => {
 
 
 function getdata(endpoint){
-    //console.log(moment(Date.now()).format() + endpoint)
+    //console.log(moment(Date.now()).format(), endpoint)
     return new Promise((result, fail) => {
         const options = {
             headers: getAuthorizationHeader(),
@@ -332,7 +347,8 @@ function getdata(endpoint){
         };
 
         request(options, function (error, response, body) {
-            if (response.statusCode === 200) {
+            //console.log(response)
+            if (response && response.statusCode === 200) {
                 if (body != "") {
                 
                 //console.log(moment(Date.now()).format() + body)
@@ -346,7 +362,7 @@ function getdata(endpoint){
                 switch (response.statusCode) {
                     case 401:
                         console.log(moment(Date.now()).format() + ': 401 hint: refresh token');
-                        console.log(moment(Date.now()).format(), refreshAccessToken)
+                        //console.log(moment(Date.now()).format(), refreshAccessToken)
                         module.exports.refresh();
                         break;
                     default:
@@ -517,24 +533,29 @@ function credentials () {
 
 function msgRec(msg){
     sendToClients(msg)
-    console.log(msg)
+    //console.log(msg.response, msg)
     packetcount()
     if (msg.notify) {
-        console.log("\x1b[36m%s\x1b[0m", moment.unix(msg.notify[0].heartbeat).format("LTS") + ` [${"Heartbeat".padEnd(16, " ")}] :: heartbeat: ${moment.unix(msg.notify[0].heartbeat).format("LLLL")}`);
-        console.log(moment(Date.now()).format("LTS") + `: heartbeat: ${moment.unix(msg.notify[0].heartbeat).format("LLLL")}`)
+        //console.log("\x1b[36m%s\x1b[0m", moment.unix(msg.notify[0].heartbeat).format("LTS") + ` [${"Heartbeat".padEnd(16, " ")}] :: heartbeat: ${moment.unix(msg.notify[0].heartbeat).format("LLLL")}`);
+        //console.log(moment(Date.now()).format("LTS") + `: heartbeat: ${moment.unix(msg.notify[0].heartbeat).format("LLLL")}`)
         //console.log(moment(Date.now()).format() + msg)
     } else {
         if (msg.data) {
             msg.data.forEach((m) => {
                 msgcount()
-                //console.log(moment(Date.now()).format() + m)
+                //console.log(moment(Date.now()).format(),msg.response,m)
                 dbWrite(m)
                 switch (m.service) {
                     case "QUOTE":
                         m.content.forEach(eq => equityTick(eq));
                         break;
                     case "CHART_FUTURES":
-                        m.content.forEach(eq => equityTick(eq));
+                    case "CHART_EQUITY":
+                        m.content.forEach(eq => {
+                            equityTick(eq)
+                            //console.log(eq)
+                            monitor.list[eq.key].spark = [...monitor.list[eq.key].spark,eq ]
+                        });
                         break;
                     case "LEVELONE_FUTURES":
                         m.content.forEach(eq => equityTick(eq));
@@ -568,7 +589,7 @@ function msgRec(msg){
                         m.content.map(act => {
                             
                             var split = act["1"].split(";")
-                            if (split[1].length > 1) {
+                            if (split[1]) {
                                 var o = {
                                     "timestamp" : m.timestamp,
                                     "ID:" : split[0],
@@ -599,10 +620,13 @@ function msgRec(msg){
 
         if (msg.response) {
             msg.response.forEach((m) => {
+                console.log(m)
+
                 switch (m.service) {
                     case "ADMIN":
                         if (m.content.code === 0) {
                             console.log(moment(Date.now()).format() + `: Login Sucuess! [code: ${m.content.code} msg:${m.content.msg}`);
+                            connected = true
                             initStream()
                             module.exports.getWatchlists()
                             .then(data => {
@@ -614,15 +638,14 @@ function msgRec(msg){
                         }
                         break;
                     case "CHART_EQUITY":
-                        //console.log(moment(Date.now()).format() + m)
+                        console.log(moment(Date.now()).format() + m)
                         break;
                     case "ACTIVES_NASDAQ":
                         break;
                     case "ACTIVES_NASDAQ":
                         break;
                     default:
-                    //console.log(moment(Date.now()).format() + `: Default Message ${msg}`)
-                    console.log(m)
+                    console.log(moment(Date.now()).format() + `: Default Message`,msg)
                     break;
                 }
             });
@@ -631,10 +654,12 @@ function msgRec(msg){
 };
 
 function sendMsg(c){
-    console.log(moment(Date.now()).format() + `: Sending:` ,c);
+    console.log(moment(Date.now()).format() + `: Sending:` ,c.requests[0]);
     ws.send(JSON.stringify(c));
 };
 function sendServiceMsg(_type,_keys,){
+    console.log(_type)
+    console.log(_keys)
     switch (_type){
         
         case "equities":
@@ -662,7 +687,7 @@ function sendServiceMsg(_type,_keys,){
                 
             sendMsg({
                 requests: [{
-                    service : "TIMESALE_EQUITY", requestid : "2", command : "SUBS", account : "your_account0", source : "your_source_id",
+                    service : "TIMESALE_EQUITY", requestid : "2", command : "SUBS", account : principals.accounts[0].accountId, source : "your_source_id",
                     parameters : {
                         keys: _keys.toString(),
                         fields : "0,1,2,3,4"
@@ -715,6 +740,7 @@ function sendServiceMsg(_type,_keys,){
         
             break;
         case "options" :
+
             break;
         case "ACTIVES_OTCBB":
         case "ACTIVES_NYSE":
@@ -745,6 +771,9 @@ function initStream(){
     sendServiceMsg("ACTIVES_OTCBB",["OTCBB-60","OTCBB-300","OTCBB-600","OTCBB-1800","OTCBB-3600","OTCBB-ALL"])
     sendServiceMsg("ACTIVES_NYSE",["NYSE-60","NYSE-300","NYSE-600","NYSE-1800","NYSE-3600","NYSE-ALL"])
     sendServiceMsg("ACTIVES_OPTIONS",["OPTS-DESC-60,OPTS-DESC-300,OPTS-DESC-600,OPTS-DESC-1800,OPTS-DESC-3600,OPTS-DESC-ALL"])
+    
+    monitor.add(["/ES","/NQ","/MYM","/GC","/SI","/PL","/HG","/BTC","/DX"])
+
 
     // sendMsg({
     //     requests: [
@@ -753,7 +782,7 @@ function initStream(){
     //             requestid: requestid(),
     //             command: "SUBS",
     //             account: principals.accounts[0].accountId,
-    //             source: principals.streamerInfo.appId,
+    //             source: principals      .streamerInfo.appId,
     //             parameters: {"qoslevel": "5"},
     //         },
     //     ],
@@ -771,8 +800,8 @@ function subscribe(){
 
 
 function equityTick(tick){
-    if (tick.key === "TWTR") console.log(`${moment(Date.now()).format()}:   ${tick['11']}`)
-    stocks[tick.key] = {...stocks[tick.key],...tick}
+    //console.log(tick)
+    monitor.list[tick.key] = {...monitor.list[tick.key],...tick}
 };
 
 
@@ -905,11 +934,11 @@ clientSocket.on('connection', function connection(socket) {
 
 console.log(socket)
 	socket.on('message', msg => {
-		console.log(msg);
+        console.log(`Received messages from ${socket._socket.remoteAddress}`, msg)
 
         msg = JSON.parse(msg)
         msg.requests.forEach((m) => {
-            console.log(`Received msg from ${socket._socket.remoteAddress} => ${msg}`)
+            console.log(`Received msg from ${socket._socket.remoteAddress}`,msg)
             switch (m.service) {
                 case "ADMIN":
                     if (m.command === "LOGIN" && m.username === "demo" && m.password === "password")
@@ -935,7 +964,7 @@ console.log(socket)
 	
 
 	socket.on('open', msg => {
-        console.log("Connected to Server ", event);
+        console.log("Connected to Server ", msg);
 
         let login = JSON.stringify({
             response: [
@@ -962,23 +991,22 @@ console.log(socket)
 
 function sendToClient(socket,message) {
     console.log(clientSockets[socket])
-    console.log(`message=> ${JSON.stringify(message)}`)
+    console.log(`tosendmessage`, JSON.stringify(message))
     
 	
-		if (clientSockets[socket].readyState === 1 ){
-			//console.log(`message=====> ${JSON.stringify(message)}`)
-            clientSockets[socket].send(JSON.stringify(message))
-        }
+    if (clientSockets[socket].readyState === 1 ){
+        console.log(`Sending message`, JSON.stringify(message))
+        clientSockets[socket].send(JSON.stringify(message))
+    }
     	
 }
 
 
 
 function sendToClients(message) {
-	console.log(message)
 	clientSocket.clients.forEach( client => {
 		if ( client.readyState === 1 ){
-			console.log(JSON.stringify(message))
+			//console.log("Sending" , JSON.stringify(message))
           	client.send(JSON.stringify(message))
         	}
     	});
