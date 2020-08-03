@@ -1,7 +1,3 @@
-node_modules
-./data/*
-./alpaca/api.json
-./coinbase/api.json
-./tda/user_principals.json
-./tda/access_token.json
-./mysql.js
+/node_modules
+auth
+/mysql.js
