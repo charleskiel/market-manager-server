@@ -1,0 +1,104 @@
+{
+    "authToken": "+sP/3E/CBTRKDpiYbGiV2YVEKHXE+23sGHN6gPLmsWCIRkTgKlWngRvzeAfm7kC6xfu2d+kHZlOAAR9WM+E5YGavIMlvC9akDtM9fyoF/54GZxSQoyMXqzWlzv7HwqLtcHag/NLdtZM99FSvjSg42B6s2UyeSzYrcLhH53cti+ql93Le4gjcjzGREz+Jel47cyBPFyOjmEULij+Uz9d9C99+0h+UzDfJMrt8kIT1sq6F04MCGmdvTSa4SYN4vsyspxim4SEllf2XJLnLihR2sWVQLdh+ETE/xbM+YxJcMUw/Qc6bT8zbqa3sbfOXxru2871Cip0OxHCfBb3wF/foo56x4niXN4ugzpwoZyiCIXGa4/Dpl7QBX2Eyrc3fhra4TbMLUiF3CxhHWE+lm0GKpb4azyDHOqClPrKvN7kqjul4EhlU5N4eiyjXf1Qab0eHXhrISWX3nD6fyEfKEze9UV8Xkhk0kxlH2rS2fahHjQo6rwMfo5IUT+IWrGJ8qBvZLXEeFNIPJBFKo9mosly//iAitHKMOWEOATV0OJZo7h+8OiMJP100MQuG4LYrgoVi/JHHvl7kw4SeNgxFek8bhN7wbAH8BdUgBQq5iExpK7NmwTAWZavRSTeiCBt4F0ZMCRCqvekpXf8Rk/vypOaPBvQ7SsDbc3V0GzVPnlDSV45naOythvpHjdVAB8bXnurO+AzYKBPW8q4QhVnUd6n2lxmJiquLBVlMnzn15r10VhVJQGYmiOjkyZa8pLeP7zVlJMRlyFme4kUQgt1bb0hnKZLl+uX/vgqX2zkrp83Z4wuAwFUUGFYg7MkCiAONSkIwOpDu5PXdxxipqaFaAQ/fB3krH6WtkcALeFnpIlaMGB44hgJyDiiCOxg5I3qqaSmW2NtHzcXItOP+fxBzsgb2q8qedFB1UBO4cevx7DyhiZIVNg2KWYbS7F2APSx8U3PSQjycItS5e47yz8OiqHehIw4ejeFKsN8gbyAmoqAnmz+UqWO4fFi82ZAZEpIdlN8LnsWfYXuO7zvDWedKLIz8MgHWxg6QtS9MdO9kDD62reLcoYc1hzMkz2kT9YCUESU8NMYFYVQflAms3fkryHKX6fWQlhKE4VT2sDbxf3pk50L9fLYvGW/PAQ==212FD3x19z9sWBHDJACbC00B75E",
+    "userId": "charleskiel",
+    "userCdDomainId": "A000000076965739",
+    "primaryAccountId": "686093498",
+    "lastLoginTime": "2020-08-03T15:26:30+0000",
+    "tokenExpirationTime": "2020-08-03T15:56:30+0000",
+    "loginTime": "2020-08-03T15:26:30+0000",
+    "accessLevel": "CUS",
+    "stalePassword": false,
+    "streamerInfo": {
+        "streamerBinaryUrl": "streamer-bin.tdameritrade.com",
+        "streamerSocketUrl": "streamer-ws.tdameritrade.com",
+        "token": "ac653ead6322a83a4b4dc2353717cce2b0d95e59",
+        "tokenTimestamp": "2020-08-03T15:26:31+0000",
+        "userGroup": "ACCT",
+        "accessLevel": "ACCT",
+        "acl": "BPDRDTDWESF7G1G3G5G7GKGLH1H3H5LTM1MAOLPNQSRFSDTETFTOTTUAURXBXNXOD2D4D6D8E2E4E6E8F2F4F6H7I1",
+        "appId": "charleskiel"
+    },
+    "professionalStatus": "NON_PROFESSIONAL",
+    "quotes": {
+        "isNyseDelayed": false,
+        "isNasdaqDelayed": false,
+        "isOpraDelayed": false,
+        "isAmexDelayed": false,
+        "isCmeDelayed": true,
+        "isIceDelayed": true,
+        "isForexDelayed": true
+    },
+    "streamerSubscriptionKeys": {
+        "keys": [
+            {
+                "key": "ab0abce08eb9f0f7aad5d04fe29a76136a8cdb1f9fe0804a647900501bfb4b3f0"
+            }
+        ]
+    },
+    "accounts": [
+        {
+            "accountId": "686093498",
+            "displayName": "charleskiel",
+            "accountCdDomainId": "A000000076965738",
+            "company": "AMER",
+            "segment": "ADVNCED",
+            "surrogateIds": {
+                "SCARR": "4adf003debd024b7d8c9cc6ae2a6a7938f396e57",
+                "Market Edge": "0f896fb7948207378f0c617da890edb8a43468eb",
+                "Zacks": "8de3fe9acd8dce30ae750a73b0cebf0fc7b1bd09",
+                "Localytics": "46be26a4866eba1cc2f7817e2c49ee13c9b846e7",
+                "Market Watch": "df9f35767bcfc8f9b2348044fc62af0a7f0afc38",
+                "Flybits": "972938073513ddc7aad79f6dc7e3d66f497db689",
+                "BOZEL": "b3ecb74347b03e72a4396ed65ce51b99b12c2d37",
+                "WallStreetStrategies": "48014626c7ca855ba43db25d2be7917d851e7ec1",
+                "STS": "4ecfb28bd95acc5a4bb7fcfdc18a9d6b6875a851",
+                "SiteCatalyst": "cb652f56eb438511031c2bbab35f4411c2249a42",
+                "OpinionLab": "6ad307869b7cb38df88d39fb9be1c906d1cc29f0",
+                "BriefingTrader": "48621f131022de91bf6a72b99e7b0a82564c8e6f",
+                "WSOD": "96c186f2c9c0405f2481339ac202f97244cc1d91",
+                "SP": "fedc91c5b71a52c4344f1ee458f030a7a35d9c4f",
+                "DART": "a3141ddecd6dd3c2713ad3ba4dc5045dfcb6ea96",
+                "EF": "c69fdd1977e30bdf9df666a68fb00bd591d84266",
+                "GK": "a7137a8c71b783be2815e5eeefb348997cf8f997",
+                "ePay": "eb7e8e93bf6f15f91be07d437c6693ad",
+                "VB": "2eed0eeb1b440505704e54ac2c8794868cb3dc23",
+                "Layer": "4512ffd5469b5afb0d19b5343b3a236bba880889",
+                "PWS": "c5a7247eaf226072f7dd0209846ab5efe3e4c365",
+                "Investools": "4612725aec57b6dd6cc617bf31e99bd21f84176c",
+                "MIN": "131a12ffd7ffc646fcd4c5c902f2871335eab121",
+                "MGP": "6849f4656705a1e429414616bac9c9ffca082574",
+                "VCE": "887617bfb0d8419bff34006128722b8ab5f647cf",
+                "HAVAS": "8c8b6be179f3cadde98cd299ad7b95c7fbcd3b70",
+                "MSTAR": "25ccee6ddc168b32409bd7502f630b40c4d9a64f"
+            },
+            "preferences": {
+                "expressTrading": false,
+                "directOptionsRouting": false,
+                "directEquityRouting": false,
+                "defaultEquityOrderLegInstruction": "NONE",
+                "defaultEquityOrderType": "LIMIT",
+                "defaultEquityOrderPriceLinkType": "NONE",
+                "defaultEquityOrderDuration": "DAY",
+                "defaultEquityOrderMarketSession": "NORMAL",
+                "defaultEquityQuantity": 0,
+                "mutualFundTaxLotMethod": "FIFO",
+                "optionTaxLotMethod": "FIFO",
+                "equityTaxLotMethod": "FIFO",
+                "defaultAdvancedToolLaunch": "NONE",
+                "authTokenTimeout": "EIGHT_HOURS"
+            },
+            "acl": "BPDRDTDWESF7G1G3G5G7GKGLH1H3H5LTM1MAOLPNQSRFSDTETFTOTTUAURXBXNXO",
+            "authorizations": {
+                "apex": false,
+                "levelTwoQuotes": false,
+                "stockTrading": true,
+                "marginTrading": true,
+                "streamingNews": false,
+                "optionTradingLevel": "LONG",
+                "streamerAccess": true,
+                "advancedMargin": true,
+                "scottradeAccount": false
+            }
+        }
+    ]
+}

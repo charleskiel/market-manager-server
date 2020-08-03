@@ -1,0 +1,16 @@
+{
+    "symbol": "",
+    "status": "FAILED",
+    "underlying": null,
+    "strategy": "SINGLE",
+    "interval": 0,
+    "isDelayed": false,
+    "isIndex": false,
+    "interestRate": 0,
+    "underlyingPrice": 0,
+    "volatility": 0,
+    "daysToExpiration": 0,
+    "numberOfContracts": 20,
+    "callExpDateMap": {},
+    "putExpDateMap": {}
+}

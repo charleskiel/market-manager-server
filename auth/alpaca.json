@@ -1,0 +1,7 @@
+{
+	"keyId" : "PKO9GWMZK2KN2WSMUG6U",
+	"secretKey" : "e28zy2JsJ2jxzpz67y7nD9cyxiO050nyFOtvwRME",
+	"endpoint" : "https://paper-api.alpaca.markets",
+	"paper": true,
+	"usePolygon": false
+}
