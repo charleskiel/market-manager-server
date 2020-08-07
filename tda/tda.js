@@ -6,6 +6,10 @@ const WebSocket = require('websocket').w3cwebsocket;
 const os = require('os')
 const mysql = require('../mysql.js');
 
+const account = require('./account')
+
+
+
 
 let _requestid = 0; function requestid(){return _requestid += +1;};
 let _msgcount = 0; function msgcount(){return _msgcount += +1;};
@@ -18,11 +22,12 @@ var stockList = [];
 var indexList = [];
 var eftList = [];
 var optionList = [];
+var accountBalanceHistory = []
 
 
 function getPriority(pid) { return os.getPriority(pid) }
 function setPriority(id, priority) { return os.setPriority(id, priority) }
-var account = {}
+//var account = {}
 var stocks = {}
 var futures = {}
 var actives = {
@@ -247,7 +252,7 @@ module.exports.status = () => {
             systemtime: Date.now(),
             msgcount: _msgcount,
             packetcount: _packetcount,
-            account: account,
+            account: account.status(),
         },
         actives : actives
     }
@@ -257,7 +262,7 @@ module.exports.status = () => {
 function status(){
     getdata(`https://api.tdameritrade.com/v1/accounts?fields=positions,orders`)
         .then((data) => {
-            account = data
+            account.tick(data)
             
             results = {
                 service: "status",
@@ -279,16 +284,16 @@ function status(){
 module.exports.accountStatus = () => {
     getdata(`https://api.tdameritrade.com/v1/accounts?fields=positions,orders`)
         .then((data) => {
-            account = data
+            account.tick(data)
             watchPositions()
-            console.log(account[0].securitiesAccount.positions)
+            console.log(account.positions())
         }
     )
 }
 
 function watchPositions(){
-    //console.log(account[0].securitiesAccount.positions.map(p => p.instrument.symbol))
-    if (connected) monitor.add(account[0].securitiesAccount.positions.map(p => p.instrument.symbol))
+    //console.log(account.status())
+    if (connected) monitor.add(account.positions().map(p => p.instrument.symbol))
 }
 module.exports.state = () => {
     // test = _.values(monitor.list , function (key,value) {
@@ -304,7 +309,7 @@ module.exports.state = () => {
         result({
                 actives : actives,
                 stocks : monitor.list,
-                account,
+                account: account.status(),
                 
                 
             })
@@ -546,21 +551,20 @@ function msgRec(msg){
                 //console.log(moment(Date.now()).format(),msg.response,m)
                 dbWrite(m)
                 switch (m.service) {
-                    case "QUOTE":
-                        m.content.forEach(eq => equityTick(eq));
-                        break;
-                    case "CHART_FUTURES":
-                    case "CHART_EQUITY":
+                    case "QUOTE": case "LEVELONE_FUTURES": case "TIMESALE_FUTURES": case "TIMESALE_EQUITY":
                         m.content.forEach(eq => {
-                            equityTick(eq)
-                            //console.log(eq)
-                            monitor.list[eq.key].spark = [...monitor.list[eq.key].spark,eq ]
+                            monitor.list[eq.key] = {...monitor.list[eq.key],...eq}
                         });
                         break;
-                    case "LEVELONE_FUTURES":
-                        m.content.forEach(eq => equityTick(eq));
+                    case "CHART_FUTURES": case "CHART_EQUITY":
+                        m.content.forEach(eq => {
+                            //equityTick(eq)
+                            //console.log(eq)
+                            monitor.list[eq.key].spark = [...monitor.list[eq.key].spark,eq ]
+                            monitor.list[eq.key].spark.push(eq)
+                        });
                         break;
-                    case "ACTIVES_NASDAQ":case "ACTIVES_NYSE": case "ACTIVES_OTCBB":
+                    case "ACTIVES_NASDAQ": case "ACTIVES_NYSE": case "ACTIVES_OTCBB":
                         var split = m.content[0]["1"].split(";")
                         if (split.length > 1){
                             var o = {
@@ -614,6 +618,13 @@ function msgRec(msg){
                                 actives.ACTIVES_OPTIONS[o.sampleDuration] = o
                             }
                         })
+                        break;
+                    default:
+                        console.log(m)
+                        m.content.map(eq =>{
+                            console.log(msg.command + " not handled")
+                            console.log(eq.content + " not handled")
+                        })
                 }
             });
         }
@@ -637,15 +648,20 @@ function msgRec(msg){
                             console.log(moment(Date.now()).format() + `: LOGIN FAILED!! [code: ${m.content.code} msg:${m.content.msg}`);
                         }
                         break;
-                    case "CHART_EQUITY":
-                        console.log(moment(Date.now()).format() + m)
+                    case "CHART_EQUITY": 
+                        console.log(m)
                         break;
+                    case "QUOTE":
                     case "ACTIVES_NASDAQ":
+                    case "ACTIVES_NYSE":
+                    case "ACTIVES_OPTIONS":
+                    case "ACTIVES_OTCBB":
                         break;
-                    case "ACTIVES_NASDAQ":
+                    case "LEVELONE_FUTURES": case "TIMESALE_FUTURES": case "CHART_FUTURES":
                         break;
-                    default:
-                    console.log(moment(Date.now()).format() + `: Default Message`,msg)
+                        default:
+                    console.log(moment(Date.now()).format() + `: Default Message`,msg.service)
+                    //debugger
                     break;
                 }
             });
@@ -799,12 +815,6 @@ function subscribe(){
 }
 
 
-function equityTick(tick){
-    //console.log(tick)
-    monitor.list[tick.key] = {...monitor.list[tick.key],...tick}
-};
-
-
 
 function dbWrite(data){
     let color = ""
@@ -857,7 +867,7 @@ function dbWrite(data){
         } //Blue
         else
         {
-            console.log(moment(data.timestamp).format("LTS") + color + ` [${data.service.padEnd(16, " ")}] :: ${JSON.stringify(data.content)}\x1b[37m \x1b[40m`);
+            //console.log(moment(data.timestamp).format("LTS") + color + ` [${data.service.padEnd(16, " ")}] :: ${JSON.stringify(data.content)}\x1b[37m \x1b[40m`);
             str = "INSERT INTO `" + data.service.toUpperCase() + "` (timestamp,content) VALUES (" + data.timestamp + ",'"+ mysql_real_escape_string(JSON.stringify(_content)) + "');"
             color = "\x1b[5m"
         }
@@ -981,7 +991,7 @@ console.log(socket)
             ]
         });
         
-        console.log(login)
+        console.log(moment(Date.now()).format(), login)
         this.socket.send(login);
 	})
 
@@ -1011,4 +1021,3 @@ function sendToClients(message) {
         	}
     	});
 }
-
