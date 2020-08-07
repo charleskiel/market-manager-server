@@ -485,7 +485,6 @@ function refreshAccessToken(){
             fs.writeFileSync("./auth/access_token.json", JSON.stringify(data, undefined, 4), (err) => { if (err) throw err; })
             
             console.log(moment(Date.now()).format() + ": Access Token updated. Expires in " + data.expires_in + " seconds");
-            //debugger
         }
     });
 
