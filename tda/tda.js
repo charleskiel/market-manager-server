@@ -192,7 +192,8 @@ module.exports.state = () => {
 
 tdaSocket.eventEmitter.on("*",function (eventData){msgRec(eventData)} )
 
-function msgRec(msg){
+function msgRec(msg) {
+    console.log(msg)
     relayToClients(msg)
     
     if (msg.data) {
