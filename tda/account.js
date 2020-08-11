@@ -6,15 +6,21 @@ const mysql = require('../mysql.js');
 
 
 var history = []
-var currentMinute = { h: 0.0 , l: 0.0, o: 0.0, c: 0.0  }
+//var currentMinute = { h: 0.0 , l: 0.0, o: 0.0, c: 0.0  }
 
 var account = {}
 var positions = []
-function getHistory(){
+function getHistory() {
+	mysql.query("select * from account limit (24*60) ")
+
+
 	return history
 }
 
 module.exports.status = () => {
+	// if (history.length === 0){
+	// 	getHistory()
+	// 	}
 	return account
 }
 
