@@ -29,7 +29,7 @@ let connected = false
 
 
 
-
+module.exports.getWatchlists = watchlists.getWatchlists
 var partmsg = ""
 module.exports.load = function() { 
     auth.refresh().then(() => {
@@ -152,7 +152,7 @@ module.exports.accountStatus = () => {
 
 function watchPositions(){
     //console.log(account.status())
-    if (connected) monitor.add(account.positions().map(p => p.instrument.symbol))
+    if (tdaSocket.status = "connected") monitor.add(account.positions().map(p => p.instrument.symbol))
 }
 module.exports.state = () => {
     // test = _.values(monitor.list , function (key,value) {
@@ -190,91 +190,91 @@ module.exports.state = () => {
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-tdaSocket.eventEmitter.on("*",function (eventData){msgRec(eventData)} )
-
-function msgRec(msg) {
-    console.log(msg)
+tdaSocket.event.on("*", function (msg) {
+    //console.log(msg)
     relayToClients(msg)
     
-    if (msg.data) {
-        msg.data.forEach((m) => {
-            //console.log(moment(Date.now()).format(),msg.response,m)
-            dbWrite(m)
-            switch (m.service) {
-                case "QUOTE": case "LEVELONE_FUTURES": case "TIMESALE_FUTURES": case "TIMESALE_EQUITY":
-                    m.content.forEach(eq => {
-                        monitor.list[eq.key] = {...monitor.list[eq.key],...eq}
-                    });
-                    break;
-                case "CHART_FUTURES": case "CHART_EQUITY":
-                    monitor.addChartData(m.content)
-                    break;
-                case "ACTIVES_NASDAQ": case "ACTIVES_NYSE": case "ACTIVES_OTCBB":
-                    var split = m.content[0]["1"].split(";")
-                    if (split.length > 1){
-                        var o = {
-                            "timestamp" : m.timestamp,
-                            "ID:" : split[0],
-                            "sampleDuration" : split[1],
-                            "Start Time" : split[2],
-                            "Display Time" : split[3],
-                            "GroupNumber" : split[4],
-                            "groups" : []}
-                            split = (split[6].split(":"))
-                            o.totalVolume = (split[0])
-                            o.groupcount = split[1]
-                            for (let i = 3; i < split.length; i += 3) {
-                                if (!stocks[split[i]]) stocks[split[i]] = {key : split[i]}
-                                o.groups.push({symbol: split[i], volume: split[i+1], priceChange: split[i+2]}) 
-                        }
-                        actives[m.service][o.sampleDuration] = o
-                        
+    if (msg.content) {
+        
+        switch (msg.service) {
+            case "QUOTE": case "LEVELONE_FUTURES": case "TIMESALE_FUTURES": case "TIMESALE_EQUITY":
+                msg.content.forEach(eq => {
+                    if (!monitor.list[eq.key]) { monitor.add([eq.key]) }
+                    monitor.list[eq.key] = { ...monitor.list[eq.key], ...eq }
+                });
+                break;
+            case "CHART_FUTURES": case "CHART_EQUITY":
+                msg.content.forEach(eq => {
+                    if (!monitor.list[eq.key]) { monitor.add([eq.key]) }
+                    monitor.addChartData(eq)
+                });
+                break;
+            case "ACTIVES_NASDAQ": case "ACTIVES_NYSE": case "ACTIVES_OTCBB":
+                var split = msg.content[0]["1"].split(";")
+                if (split.length > 1) {
+                    var o = {
+                        "timestamp": msg.timestamp,
+                        "ID:": split[0],
+                        "sampleDuration": split[1],
+                        "Start Time": split[2],
+                        "Display Time": split[3],
+                        "GroupNumber": split[4],
+                        "groups": []
                     }
-                    break;
-                case "ACTIVES_OPTIONS":
-                    //console.log(moment(Date.now()).format() + ": OPTIONS Activies")
-                    //console.log(m)
-                    //debugger
-                    m.content.map(act => {
-                        
-                        var split = act["1"].split(";")
-                        if (split[1]) {
-                            var o = {
-                                "timestamp" : m.timestamp,
-                                "ID:" : split[0],
-                                "sampleDuration" : split[1],
-                                "Start Time" : split[2],
-                                "Display Time" : split[3],
-                                "GroupNumber" : split[4],
-                                "groups": []
-                            }
-
-                            split = (split[6].split(":"))
-                            o.totalVolume = (split[3])
-                            o.groupcount = split[1]
-                            //o.sampleDuration
-                            for (let i = 3; i < split.length; i += 4) {
-                                //if (!this.state[split[i]]) this.stockTickerSubscribe([split[i]])
-                                o.groups.push({symbol: split[i], name: split[i+1], volume: split[i+2], percentChange: split[i+3]}) 
-                            }
-                            
-                            //console.log(moment(Date.now()).format() + `: Default Message: ` + m.service, m);
-                            //console.log(moment(Date.now()).format() + m);
-                            monitor.actives.ACTIVES_OPTIONS[o.sampleDuration] = o
+                    split = (split[6].split(":"))
+                    o.totalVolume = (split[0])
+                    o.groupcount = split[1]
+                    for (let i = 3; i < split.length; i += 3) {
+                        if (!stocks[split[i]]) stocks[split[i]] = { key: split[i] }
+                        o.groups.push({ symbol: split[i], volume: split[i + 1], priceChange: split[i + 2] })
+                    }
+                    monitor.actives[msg.service][o.sampleDuration] = o
+                    
+                }
+                break;
+            case "ACTIVES_OPTIONS":
+                //console.log(moment(Date.now()).format() + ": OPTIONS Activies")
+                //console.log(m)
+                //debugger
+                msg.content.map(act => {
+                    
+                    var split = act["1"].split(";")
+                    if (split[1]) {
+                        var o = {
+                            "timestamp": msg.timestamp,
+                            "ID:": split[0],
+                            "sampleDuration": split[1],
+                            "Start Time": split[2],
+                            "Display Time": split[3],
+                            "GroupNumber": split[4],
+                            "groups": []
                         }
-                    })
-                    break;
-                default:
-                    console.log(m)
-                    m.content.map(eq =>{
-                        console.log(msg.command + " not handled")
-                        console.log(eq.content + " not handled")
-                    })
-            }
-        });
-    }
 
-};
+                        split = (split[6].split(":"))
+                        o.totalVolume = (split[3])
+                        o.groupcount = split[1]
+                        //o.sampleDuration
+                        for (let i = 3; i < split.length; i += 4) {
+                            //if (!this.state[split[i]]) this.stockTickerSubscribe([split[i]])
+                            o.groups.push({ symbol: split[i], name: split[i + 1], volume: split[i + 2], percentChange: split[i + 3] })
+                        }
+                        
+                        //console.log(moment(Date.now()).format() + `: Default Message: ` + msg.service, m);
+                        //console.log(moment(Date.now()).format() + m);
+                        monitor.actives.ACTIVES_OPTIONS[o.sampleDuration] = o
+                    }
+                })
+                break;
+            default:
+                console.log(msg)
+                console.log(msg.service + " not handled")
+				console.log(`\x1b[44m [${moment(Date.now()).format()}] \x1b[0m  ${msg.service}  \x1b[41m ${msg.content.code}  \x1b[0m ${msg.content.msg}`, msg);
+                
+                //debugger
+        }
+    }
+})
+
 
 
 

@@ -1,4 +1,5 @@
 const _ = require("lodash");
+const moment = require("moment");
 
 const mysql = require("../mysql.js");
 const tdaSocket = require("./tdaSocket");
@@ -53,21 +54,23 @@ module.exports.defaultFutures = [
 	"/NG", // Natural Gas
 
 ];
-module.exports.allProducts = () => { return products }
+
+module.exports.defaultStocks = ["QQQ","SPY","GLD","AMD","HD","NVDA","ACB","WMT","BJ","TGT","MSFT","NVDA","ROKU","NFLX","ADBE","SHOP","TSLA","GOOG","AMZN","JNJ","BYND","SMH","MU","LOW","DIS","FDX","CAT","MMM","UPS","YUM","DLTR","BANK","BBY","UBS"]
+module.exports.list = {  products }
 
 module.exports.equities = () => {
 
-	let k = _.keys(module.exports.allProducts());
-	let kk = _.keys(module.exports.allProducts());
-	let result = _.keys(module.exports.allProducts()).filter(key => {
+	let k = _.keys(module.exports.list);
+	let kk = _.keys(module.exports.list);
+	let result = _.keys(module.exports.list).filter(key => {
 		return (!key.includes("$") && !key.includes("/") && key.length < 6)
 
 	})
 	return result
 },
-module.exports.indexes = () => { return _.keys(module.exports.allProducts()).filter(key => (key.includes("$") && !key.includes("/"))) },
-module.exports.futures = () => { return _.keys(module.exports.allProducts()).filter(key => (!key.includes("$") && key.includes("/"))) },
-module.exports.options = () => { return _.keys(module.exports.allProducts()).filter(key => (!key.includes("$") && !key.includes("/") && key.length > 5)) }
+module.exports.indexes = () => { return _.keys(module.exports.list).filter(key => (key.includes("$") && !key.includes("/"))) },
+module.exports.futures = () => { return _.keys(module.exports.list).filter(key => (!key.includes("$") && key.includes("/"))) },
+module.exports.options = () => { return _.keys(module.exports.list).filter(key => (!key.includes("$") && !key.includes("/") && key.length > 5)) }
 	
 
 
@@ -88,10 +91,10 @@ module.exports.add = (items) => {
 			if (type == "options") { optionsChange = true }
 		}
 	})
-	if (tdaSocket.status.socketStatus === "connected") {
+	if (tdaSocket.status === "connected") {
 		
 		if (optionsChange || indexesChange || futuresChange) { console.log(optionsChange, indexesChange, futuresChange); }
-		if (equitiesChange) { tdaSocket.sendServiceMsg("equities", [...module.exports.equities(), ...module.exports.indexes()]) }
+		if (equitiesChange) { tdaSocket.sendServiceMsg("equities", [...module.exports.defaultStocks, ...module.exports.equities(), ...module.exports.indexes()]); }
 		if (futuresChange) { tdaSocket.sendServiceMsg("futures", module.exports.futures()) }
 		if (optionsChange) { tdaSocket.sendServiceMsg("options", module.exports.options()) }
 	}
@@ -109,12 +112,26 @@ module.exports.remove = (items) => {
 }
 
 module.exports.addChartData = (m) => {
-	m.forEach((eq) => {
-		//equityTick(eq)
-		//console.log(eq)
-		//products[eq.key].spark = [...products[eq.key].spark, eq];
-		products[eq.key].spark.push(eq);
-	});
+	switch (isType(m.key)){
+		case "equities":
+		case "indexes":
+			mysql.query(`insert into chartdata (\`key\`,\`datetime\`,o,h,l,c,v) 	VALUES ('${m.key}', ${m[7]}, ${m[1]}, ${m[2]}, ${m[3]}, ${m[4]}, ${m[5]})
+			ON DUPLICATE KEY UPDATE  o = ${m[1]}, h = ${m[2]}, l = ${m[3]}, c = ${m[4]}, v = ${m[5]}`)
+			break;
+		case "futures":
+			mysql.query(`insert into chartdata (\`key\`,\`datetime\`,o,h,l,c,v) 	VALUES ('${m.key}', ${m[1]}, ${m[2]}, ${m[3]}, ${m[4]}, ${m[5]}, ${m[6]})
+			ON DUPLICATE KEY UPDATE  o = ${m[1]}, h = ${m[2]}, l = ${m[3]}, c = ${m[4]}, v = ${m[5]}`)
+			break;
+		case "options":
+			mysql.query(`insert into chartdata (\`key\`,\`datetime\`,o,h,l,c,v) 	VALUES ('${m.key}', ${m[7]}, ${m[1]}, ${m[2]}, ${m[3]}, ${m[4]}, ${m[5]})
+			ON DUPLICATE KEY UPDATE  o = ${m[1]}, h = ${m[2]}, l = ${m[3]}, c = ${m[4]}, v = ${m[5]}`)
+			break;
+	}
+	products[m.key].spark.push(m);
+	while (products[m.key].spark.length > 0 && products[m.key].spark[0][7] < (Date.now() - (24*60*60*1000))){
+		console.log(`popping old chart data ${moment( products[m.key].spark[0][7]).startOf('day').fromNow()}`  )
+		products[m.key].spark.shift()
+	}
 }
 
 function isType(key) {

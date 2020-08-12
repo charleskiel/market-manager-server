@@ -26,7 +26,7 @@ exports.getData = (endpoint) => {
                 } else
                 {fail(response.statusMessage)}
             }
-            else {
+            else if (response){
                 switch (response.statusCode) {
                     case 401:
                         console.log(moment(Date.now()).format() + ': 401 hint: refresh token');
@@ -42,6 +42,9 @@ exports.getData = (endpoint) => {
                     msg: "ERROR"
                 })
             } 
+            else {
+                fail(error)
+            }
         })
     });
 }

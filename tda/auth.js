@@ -41,11 +41,9 @@ function validateAccessToken() {
 			const access_token = JSON.parse(fs.readFileSync("./auth/access_token.json"));
 			const refreshTokenInfo = JSON.parse(fs.readFileSync("./auth/refresh_token.json"));
 
-			console.log(moment(Date.now()).format() + ": =================================================");
-			console.log(moment(Date.now()).format() + `: Access code expires ${moment(access_token.created_on + access_token.expires_in).fromNow()}`);
 			console.log(
 				moment(Date.now()).format() +
-					`: Refresh Token updated ${moment(refreshTokenInfo.updated_on).fromNow()}, expires ${moment(refreshTokenInfo.updated_on).add(90, "days").fromNow()}. No update needed.`
+					`: Refresh Token last updated ${moment(refreshTokenInfo.updated_on).fromNow()}, expires ${moment(refreshTokenInfo.updated_on).add(90, "days").fromNow()}. No update needed.`
 			);
 
 			if (Date.now() >= access_token.created_on + access_token.expires_in * 1000) {
@@ -58,10 +56,7 @@ function validateAccessToken() {
 						fail("Something went wrong");
 					});
 			} else {
-				console.log(
-					moment(Date.now()).format() + `: Access Token OK updated ${moment(access_token.created_on).fromNow()}, expires ${moment(refreshTokenInfo.expires_on).add(90, "days").fromNow()}.`
-				);
-				ok("Token OK!");
+				ok(moment(Date.now()).format() + `: Access Token OK! Updated ${moment(access_token.created_on).fromNow()}, expires ${moment(refreshTokenInfo.created_on).add(90, "days").fromNow()}.`);
 			}
 		});
 		
@@ -82,9 +77,8 @@ function validateprincipals() {
 			console.log(
 				moment(Date.now()).format() + `: Principals updated ${moment(user_principals.streamerInfo.tokenTimestamp).fromNow()}, expires ${moment(user_principals.tokenExpirationTime).fromNow()}`
 			);
-			console.log(moment(Date.now()).format() + moment(user_principals.streamerInfo.tokenTimestamp).format());
-			console.log(moment(Date.now()).format() + moment(Date.now()).format());
-			console.log(moment(Date.now()).format() + moment(Date.now()).diff(user_principals.streamerInfo.tokenTimestamp, "seconds"));
+			//console.log(moment(Date.now()).format() + moment(user_principals.streamerInfo.tokenTimestamp).format());
+			//console.log(moment(Date.now()).format() + moment(Date.now()).diff(user_principals.streamerInfo.tokenTimestamp, "seconds"));
 
 			if (moment(user_principals.streamerInfo.tokenTimestamp).diff(Date.now()) <= 0) {
 				console.log(moment(Date.now()).format() + ": =================================================");

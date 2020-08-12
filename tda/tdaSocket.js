@@ -8,7 +8,7 @@ const moment = require("moment");
 var EventEmitter2 = require("eventemitter2");
 
 
-var event = new EventEmitter2({
+module.exports.event = new EventEmitter2({
 	wildcard: true,
 	delimiter: ".",
 	newListener: false,
@@ -17,21 +17,24 @@ var event = new EventEmitter2({
 	verboseMemoryLeak: false,
 	ignoreErrors: false,
 });
-module.exports.eventEmitter = event 
 
 let _requestid = 0; function requestid(){return _requestid += +1;};
 let _msgcount = 0; function msgcount(){return _msgcount += +1;};
 let _packetcount = 0; function packetcount(){return _packetcount += +1;};
 let _socketStatus = "disconnected";
+
+let sendQueue = []
 let sendHistory = [] 
 let recHistory = [] 
 function socketStatus(_status) {
 	_socketStatus = _status
-	event.emit("socketStatus" , _status)
+	module.exports.event.emit("socketStatus" , _status)
 }
 
 module.exports.status = {
-	socketStatus : _socketStatus,
+	socketStatus: _socketStatus,
+	sendhistory: sendHistory,
+	rechistory: recHistory,
 	requestid : _requestid,
 	msgcount : _msgcount,
 	packetcount : _packetcount,
@@ -43,11 +46,7 @@ module.exports.load = () => {
 	ws.onopen = function () {
 		socketStatus("open")
 		console.log(moment(Date.now()).format() + ": Connection opened");
-		console.log(auth.accountId())
-		console.log(auth.appId())
-		console.log(auth.credentials().token)
-
-		sendMsg({
+		ws.send(JSON.stringify({
 			requests: [
 				{
 					service: "ADMIN",
@@ -63,7 +62,7 @@ module.exports.load = () => {
 					},
 				},
 			],
-		});
+		}));
 	};
 
 	ws.onmessage = function (message) {
@@ -82,14 +81,15 @@ module.exports.load = () => {
 
 		try {
 			let packet = JSON.parse(message.data)
-			console.log(packet) 
+			//console.log(packet) 
 			packetcount()
 			
 
 			if (packet.notify) {
-
-				//emit heartbeat()
-
+				packet.notify.map(p => {
+					module.exports.event.emit("notify", p);
+					console.log("\x1b[36m%s\x1b[0m", moment.unix(p.heartbeat).format("LTS") + ` [${"Heartbeat".padEnd(16, " ")}] :: heartbeat: ${moment.unix(packet.notify[0].heartbeat).format("LLLL")}`);
+				})
 				//console.log("\x1b[36m%s\x1b[0m", moment.unix(packet.notify[0].heartbeat).format("LTS") + ` [${"Heartbeat".padEnd(16, " ")}] :: heartbeat: ${moment.unix(packet.notify[0].heartbeat).format("LLLL")}`);
 				//console.log(moment(Date.now()).format("LTS") + `: heartbeat: ${moment.unix(packet.notify[0].heartbeat).format("LLLL")}`)
 				//console.log(moment(Date.now()).format() + packet)
@@ -98,7 +98,7 @@ module.exports.load = () => {
 				if (packet.data) {
 					packet.data.forEach((m) => {
 						msgcount()
-						event.emit(m.service, m)
+						module.exports.event.emit(m.service, m)
 					})
 				}
 
@@ -108,7 +108,7 @@ module.exports.load = () => {
 						switch (m.service) {
 							case "ADMIN":
 								if (m.content.code === 0) {
-									socketStatus("Connected")
+									socketStatus("connected")
 									console.log(moment(Date.now()).format() + `: Login Sucuess! [code: ${m.content.code} packet:${m.content.packet}`);
 									initStream()
 								} else {
@@ -118,19 +118,18 @@ module.exports.load = () => {
 							
 							
 							default:
+								recHistory.push(m)
 								if (m.content.code === 0) {
 									console.log(`[${moment(Date.now()).format()}] ${m.service} \x1b[92m OK `);
-									recHistory.push(m)
 								} else {
-									console.log(`\x1b[44m [${moment(Date.now()).format()}] \x1b[0m  \x1b[44m [${m.requestid}] \x1b[0m  ${m.service}  \x1b[41m Fail  \x1b[0m ${m.content.msg}`);
-									console.log(m)
+									console.log(`\x1b[44m [${moment(Date.now()).format()}] \x1b[0m  \x1b[44m [${m.requestid}] \x1b[0m  ${m.service}  \x1b[41m Fail  \x1b[0m ${m.content.msg}`,m)
 									
-									for (let index = 0; index < sendHistory.length; index++) {
-										console.log(sendHistory[index])
+									// for (let index = 0; index < sendHistory.length; index++) {
+									// 	console.log(sendHistory[index])
 										
-									}
+									// }
 
-									debugger
+									//debugger
 								}
 							break;
 						}
@@ -139,7 +138,6 @@ module.exports.load = () => {
 			}
 			
 		} catch (error) {
-			console.log("\x1b[41m", "Message from server ", event.data);
 			console.log("\x1b[41m", error);
 			console.log("\x1b[0m");
 			
@@ -166,25 +164,36 @@ module.exports.load = () => {
 
 
 function sendMsg(c){
-	console.log(moment(Date.now()).format() + `: Send to TDA:`, c.requests[0]);
-	console.log(c.requests[0].requestid);
-	sendHistory[c.requests[0].requestid] = c
-	ws.send(JSON.stringify(c));
-	sendHistory
+
+	sendQueue.push(c);
 	
 };
 
 
 
+
 function initStream() {
+	// sendMsg({
+	// 	requests: [{
+	// 		service: "QUOTE",
+	// 		requestid: requestid(),
+	// 		command: "SUBS",
+	// 		account: auth.accountId(),
+	// 		source: auth.appId(),
+	// 		parameters: {
+	// 			keys: [..._keys].toString(),
+	// 			fields: "0,1,2,3,8,9,10,11,12,13,14,15,16,17,18,24,25,28,29,30,31,40,49",
+	// 		},
+	// 	}]
+	// })
 	module.exports.sendServiceMsg("ACTIVES_NASDAQ", ["NASDAQ-60", "NASDAQ-300", "NASDAQ-600", "NASDAQ-1800", "NASDAQ-3600", "NASDAQ-ALL"]);
 	module.exports.sendServiceMsg("ACTIVES_OTCBB", ["OTCBB-60", "OTCBB-300", "OTCBB-600", "OTCBB-1800", "OTCBB-3600", "OTCBB-ALL"]);
 	module.exports.sendServiceMsg("ACTIVES_NYSE", ["NYSE-60", "NYSE-300", "NYSE-600", "NYSE-1800", "NYSE-3600", "NYSE-ALL"]);
 	module.exports.sendServiceMsg("ACTIVES_OPTIONS", ["OPTS-DESC-60", "OPTS-DESC-300", "OPTS-DESC-600", "OPTS-DESC-1800", "OPTS-DESC-3600", "OPTS-DESC-ALL"]);
 	
-	//console.log(watchlists.allWatchlistKeys());
-	module.exports.sendServiceMsg("equities",watchlists.allWatchlistKeys());
-	//monitor.add(monitor.defaultFutures);
+	console.log(monitor.defaultStocks);
+	//module.exports.sendServiceMsg("equities", [...monitor.defaultStocks, ...monitor.equities(), ...monitor.indexes()]);
+	monitor.add(monitor.defaultFutures);
 
 	// sendMsg({
 	//     requests: [
@@ -205,7 +214,7 @@ function initStream() {
 
 module.exports.sendServiceMsg = (_type, _keys) => {
 	console.log(_type);
-	console.log(_keys.toString());
+	console.log([..._keys].toString());
 	switch (_type) {
 		case "equities":
 		case "indexes":
@@ -219,38 +228,62 @@ module.exports.sendServiceMsg = (_type, _keys) => {
 						account: auth.accountId(),
 						source: auth.appId(),
 						parameters: {
-							keys: _keys.toString(),
+							keys: [..._keys].toString(),
 							fields: "0,1,2,3,8,9,10,11,12,13,14,15,16,17,18,24,25,28,29,30,31,40,49",
 						},
-					},{
+					},
+					{
 						service: "CHART_EQUITY",
 						requestid: requestid(),
 						command: "SUBS",
 						account: auth.accountId(),
 						source: auth.appId(),
 						parameters: {
-							keys: _keys.toString(),
+							keys: [..._keys].toString(),
 							fields: "0,1,2,3,4,5,6,7,8",
 						},
-					},{
+					},
+					{
 						service: "TIMESALE_EQUITY",
 						requestid: "2",
 						command: "SUBS",
 						account: auth.accountId(),
 						source: auth.appId(),
 						parameters: {
-							keys: _keys.toString(),
+							keys: [..._keys].toString(),
 							fields: "0,1,2,3,4",
 						},
-					},{
+					},
+					{
 						service: "NEWS_HEADLINE",
 						requestid: requestid(),
 						command: "SUBS",
 						account: auth.accountId(),
 						source: auth.appId(),
 						parameters: {
-							keys: ["ABC","CGC","HEXO","APHA","CTST","CRON","TLRY","CSCO","CVS","FB","PLUG","CMCSA","EXC","IBM","INTC","RNG","LOGI","STX","WDC","HAUP","AAPL","QCOM","SQ","PAYX","DLB","FIT","NOK","INFY","MSFT","ENPH","T","R","XOM","VZ","DUK","CAH","LOW","GIS","CAT","GE","GS","FIS","PFE","K","LLY","MMM","UNP","USB","ABBV","UTX","HON","LMT","UNH","PM","AXP","CRM","DPS","WFC","MCD","NKE","PEP","WBA","C","ORCL","MRK","AMP","SKT","KO","MA","DIS","CVX","BA","WMT","JPM","V","HD","BAC","JNJ","PG","COST","SNBR","ROST","DKS","BBY","AZO","BGFV","BBBY","EXPR","FIVE","BURL","MIK","GPS","GNC","FL","GME","SCVL","PSMT","LL","DLTR","JWN","KSS","M","ULTA","TGT","URBN","BIG","WLWHY","AAN","AMT","ANET","BIIB","SCHW","CHD","SEDG","IWM","FXI","XLE","SH","SOXS","SDOW","JNK","BND","KWEB","XRT","EWH","XLK","SILJ","UPRO","EZU","XLB","PHYS","DXD","LABD","VNQ","PSQ","XLRE","XLP","TLT","MCHI","IJR","VIXY","USO","XBI","ITB","SVXY","PSLV","UCO","GDXJ","DFEN","EWJ","GOVT","AGQ","SCO","SMH","QID","IYR","SDS","SPXL","SPY","QQQ","SPX","TSLA","VXX","GOOG","GLD","NFLX","FSLR","GDX","SLV","BMY","BUD","RAD","COMP","VIX","PENN","TWTR","LH","PCG","AWK","EFX","ARMK","CSPR","LYFT","FITB","IRM","CRWD","ATVI","TMUS","TXN","WYNN","GLUU","REMX","CNXT","GRPN","MKC","SPCE","CATY","LIT","APRN","PAG","ORLY","KMX","GPI"],
-							//keys: _keys,
+							keys: "*ALL*", //keys: _keys,
+							fields: "0,1,2,3,4,5,6,7,8,9,10",
+						},
+					},
+					{
+						service: "NEWS_HEADLINELIST",
+						requestid: requestid(),
+						command: "SUBS",
+						account: auth.accountId(),
+						source: auth.appId(),
+						parameters: {
+							keys: "*ALL*", //keys: _keys,
+							fields: "0,1,2,3,4,5,6,7,8,9,10",
+						},
+					},
+					{
+						service: "NEWS_STORY",
+						requestid: requestid(),
+						command: "SUBS",
+						account: auth.accountId(),
+						source: auth.appId(),
+						parameters: {
+							keys: "*ALL*", //keys: _keys,
 							fields: "0,1,2,3,4,5,6,7,8,9,10",
 						},
 					},
@@ -297,6 +330,7 @@ module.exports.sendServiceMsg = (_type, _keys) => {
 
 			break;
 		case "options":
+
 			break;
 		case "ACTIVES_OTCBB":
 		case "ACTIVES_NYSE":
@@ -311,7 +345,7 @@ module.exports.sendServiceMsg = (_type, _keys) => {
 						account: auth.accountId(),
 						source: auth.appId(),
 						parameters: {
-							keys: _keys.toString(),
+							keys: [..._keys].toString(),
 							fields: "0,1",
 						},
 					},
@@ -329,6 +363,15 @@ module.exports.sendServiceMsg = (_type, _keys) => {
 
 
 
+
+setInterval(() => {
+	if (_socketStatus === "connected" && sendQueue.length > 0) {
+		console.log(moment(Date.now()).format() + `: Send to TDA:`, sendQueue[0]);
+		sendHistory.push(sendQueue[0]);
+		ws.send(JSON.stringify(sendQueue.shift()));
+	}
+}
+, 200);
 
 
 jsonToQueryString = (json) => { return Object.keys(json).map(function (key) { return (encodeURIComponent(key) + "=" + encodeURIComponent(json[key])); }).join("&"); };
