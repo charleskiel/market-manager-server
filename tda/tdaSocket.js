@@ -261,7 +261,7 @@ module.exports.sendServiceMsg = (_type, _keys) => {
 						account: auth.accountId(),
 						source: auth.appId(),
 						parameters: {
-							keys: "*ALL*", //keys: _keys,
+							keys: [..._keys].slice(0, 100).toString(),
 							fields: "0,1,2,3,4,5,6,7,8,9,10",
 						},
 					},
@@ -272,7 +272,7 @@ module.exports.sendServiceMsg = (_type, _keys) => {
 						account: auth.accountId(),
 						source: auth.appId(),
 						parameters: {
-							keys: "*ALL*", //keys: _keys,
+							keys: [..._keys].slice(0, 100).toString(),
 							fields: "0,1,2,3,4,5,6,7,8,9,10",
 						},
 					},
@@ -283,7 +283,7 @@ module.exports.sendServiceMsg = (_type, _keys) => {
 						account: auth.accountId(),
 						source: auth.appId(),
 						parameters: {
-							keys: "*ALL*", //keys: _keys,
+							keys: [..._keys].slice(0, 100).toString(),
 							fields: "0,1,2,3,4,5,6,7,8,9,10",
 						},
 					},
@@ -301,7 +301,7 @@ module.exports.sendServiceMsg = (_type, _keys) => {
 						account: auth.accountId(),
 						source: auth.appId(),
 						parameters: {
-							keys: monitor.futures().toString(),
+							keys: [..._keys].toString(),
 							fields: "0,1,2,3,4,5,6,7",
 						},
 					},{
@@ -311,7 +311,7 @@ module.exports.sendServiceMsg = (_type, _keys) => {
 						account: auth.accountId(),
 						source: auth.appId(),
 						parameters: {
-							keys: monitor.futures().toString(),
+							keys: [..._keys].toString(),
 							fields: "0,1,2,3,4,8,9,12,13,14,16,18,19,20,23,24,25,26,27,28,31",
 						},
 					},{
@@ -321,7 +321,7 @@ module.exports.sendServiceMsg = (_type, _keys) => {
 						account: auth.accountId(),
 						source: auth.appId(),
 						parameters: {
-							keys: monitor.futures().toString(),
+							keys: [..._keys].toString(),
 							fields: "0,1,2,3,4",
 						},
 					},

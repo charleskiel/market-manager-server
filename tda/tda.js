@@ -155,19 +155,19 @@ function watchPositions(){
     if (tdaSocket.status = "connected") monitor.add(account.positions().map(p => p.instrument.symbol))
 }
 module.exports.state = () => {
-    // test = _.values(monitor.list , function (key,value) {
+    // test = _.values(monitor.list() , function (key,value) {
     //     return [key] = {key : value}}
     // )
-    // for (var stock in monitor.list){
+    // for (var stock in monitor.list()){
     //     console.log(stock)
-    //     console.log(monitor.list[stock])
+    //     console.log(monitor.list()[stock])
     // }
-    // console.log(monitor.list)
+    console.log({...monitor.list()})
     // console.log(test)
     return new Promise((result,error) =>{
         result({
                 actives : monitor.actives,
-                stocks : monitor.list,
+                stocks : {...monitor.list()},
                 account: account.status(),
                 
                 
@@ -199,13 +199,13 @@ tdaSocket.event.on("*", function (msg) {
         switch (msg.service) {
             case "QUOTE": case "LEVELONE_FUTURES": case "TIMESALE_FUTURES": case "TIMESALE_EQUITY":
                 msg.content.forEach(eq => {
-                    if (!monitor.list[eq.key]) { monitor.add([eq.key]) }
-                    monitor.list[eq.key] = { ...monitor.list[eq.key], ...eq }
+                    //if (!monitor.exists(eq.key)) { monitor.add([eq.key]) }
+                    monitor.tick(eq)
                 });
                 break;
             case "CHART_FUTURES": case "CHART_EQUITY":
                 msg.content.forEach(eq => {
-                    if (!monitor.list[eq.key]) { monitor.add([eq.key]) }
+                    //if (!monitor.exists(eq.key)) { monitor.add([eq.key]) }
                     monitor.addChartData(eq)
                 });
                 break;

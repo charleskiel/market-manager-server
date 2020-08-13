@@ -56,24 +56,27 @@ module.exports.defaultFutures = [
 ];
 
 module.exports.defaultStocks = ["QQQ","SPY","GLD","AMD","HD","NVDA","ACB","WMT","BJ","TGT","MSFT","NVDA","ROKU","NFLX","ADBE","SHOP","TSLA","GOOG","AMZN","JNJ","BYND","SMH","MU","LOW","DIS","FDX","CAT","MMM","UPS","YUM","DLTR","BANK","BBY","UBS"]
-module.exports.list = {  products }
+module.exports.list = () => {return products}
 
 module.exports.equities = () => {
 
-	let k = _.keys(module.exports.list);
-	let kk = _.keys(module.exports.list);
-	let result = _.keys(module.exports.list).filter(key => {
+	let k = _.keys(products);
+	let kk = _.keys(products);
+	let result = _.keys(products).filter(key => {
 		return (!key.includes("$") && !key.includes("/") && key.length < 6)
 
 	})
 	return result
 },
-module.exports.indexes = () => { return _.keys(module.exports.list).filter(key => (key.includes("$") && !key.includes("/"))) },
-module.exports.futures = () => { return _.keys(module.exports.list).filter(key => (!key.includes("$") && key.includes("/"))) },
-module.exports.options = () => { return _.keys(module.exports.list).filter(key => (!key.includes("$") && !key.includes("/") && key.length > 5)) }
+module.exports.indexes = () => { return _.keys(products).filter(key => (key.includes("$") && !key.includes("/"))) },
+module.exports.futures = () => { return _.keys(products).filter(key => (!key.includes("$") && key.includes("/"))) },
+module.exports.options = () => { 
+	let e = _.keys(products).filter(key => (key.includes("_") ))
+	return _.keys(products).filter(key => (key.includes("_") ))
+	}
 	
 
-
+module.exports.exists = (key) => {(products[key]) ? true : false}
 module.exports.add = (items) => {
 	let equitiesChange = false
 	let indexesChange = false
@@ -94,9 +97,16 @@ module.exports.add = (items) => {
 	if (tdaSocket.status === "connected") {
 		
 		if (optionsChange || indexesChange || futuresChange) { console.log(optionsChange, indexesChange, futuresChange); }
-		if (equitiesChange) { tdaSocket.sendServiceMsg("equities", [...module.exports.defaultStocks, ...module.exports.equities(), ...module.exports.indexes()]); }
-		if (futuresChange) { tdaSocket.sendServiceMsg("futures", module.exports.futures()) }
-		if (optionsChange) { tdaSocket.sendServiceMsg("options", module.exports.options()) }
+		if (equitiesChange) { 
+			let e = [...module.exports.defaultStocks, ...module.exports.equities(), ...module.exports.indexes()]
+			
+			tdaSocket.sendServiceMsg("equities", [...module.exports.defaultStocks, ...module.exports.equities(), ...module.exports.indexes()]); }
+		if (futuresChange) { 
+			e = module.exports.futures()
+			tdaSocket.sendServiceMsg("futures", e) }
+		if (optionsChange) { 
+			e = module.exports.options()
+			tdaSocket.sendServiceMsg("options", e) }
 	}
 }
 
@@ -111,6 +121,9 @@ module.exports.remove = (items) => {
 	)
 }
 
+module.exports.tick = (tick) =>{
+	products[tick.key] = { ...products[tick.key], ...tick }
+}
 module.exports.addChartData = (m) => {
 	switch (isType(m.key)){
 		case "equities":
@@ -120,12 +133,17 @@ module.exports.addChartData = (m) => {
 			break;
 		case "futures":
 			mysql.query(`insert into chartdata (\`key\`,\`datetime\`,o,h,l,c,v) 	VALUES ('${m.key}', ${m[1]}, ${m[2]}, ${m[3]}, ${m[4]}, ${m[5]}, ${m[6]})
-			ON DUPLICATE KEY UPDATE  o = ${m[1]}, h = ${m[2]}, l = ${m[3]}, c = ${m[4]}, v = ${m[5]}`)
+			ON DUPLICATE KEY UPDATE  o = ${m[2]}, h = ${m[3]}, l = ${m[4]}, c = ${m[5]}, v = ${m[6]}`)
 			break;
 		case "options":
 			mysql.query(`insert into chartdata (\`key\`,\`datetime\`,o,h,l,c,v) 	VALUES ('${m.key}', ${m[7]}, ${m[1]}, ${m[2]}, ${m[3]}, ${m[4]}, ${m[5]})
 			ON DUPLICATE KEY UPDATE  o = ${m[1]}, h = ${m[2]}, l = ${m[3]}, c = ${m[4]}, v = ${m[5]}`)
 			break;
+	}
+	//console.log(products[m.key])
+	if (products[m.key] === undefined){
+		//debugger
+		products[m.key] = {...m, ...{spark: []}}
 	}
 	products[m.key].spark.push(m);
 	while (products[m.key].spark.length > 0 && products[m.key].spark[0][7] < (Date.now() - (24*60*60*1000))){
