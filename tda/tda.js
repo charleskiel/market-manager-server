@@ -38,10 +38,7 @@ let access_token =  JSON.parse(fs.readFileSync('./auth/access_token.json'))
 let accountInfo =  JSON.parse(fs.readFileSync('./auth/account_info.json'))
 let principals = JSON.parse(fs.readFileSync('./auth/user_principals.json'))
 //function principals(){ JSON.parse(fs.readFileSync('./auth/user_principals.json'), (err) => { if (err) console.error(err); })}
-<<<<<<< HEAD
-var stocktestlist = ["QQQ","SPY","GLD","AMD","HD","NVDA","ACB","WMT","BJ","TGT","MSFT","NVDA","ROKU","NFLX","ADBE","SHOP","TSLA","GOOG","AMZN","JNJ","BYND","SMH","MU","LOW","DIS","FDX","CAT","MMM","UPS","YUM","DLTR","BANK","BBY"]
-var futurestestlist = ["/ES","/MYM","/MNQ","/M2K","/MES","/BTC","/KC","/HG","/ZC","/HE","/GC","/M6A","/M63","/M6B","/ZT","/ZN","/ZB","/ZF","/6A","/6B","/6C","/6E","/6N","/NG","/LE","/YM","/YG","/QM","/NG","/PL","/SI","/DX","/TN"]
-=======
+
 var monitor = {
     add : (items) =>{
         let equitiesChange = false
@@ -74,7 +71,6 @@ var monitor = {
     futures : () => { return _.keys(monitor.list).filter(key => (!key.includes("$") && key.includes("/") ) )},
     options : () => { return _.keys(monitor.list).filter(key => (!key.includes("$") && !key.includes("/") && key.length > 5 ) )}
 }
->>>>>>> bfbae021ef9e8a29d5e9465ab2a0c12dbde0ded4
 
 function isType(key){
     //console.log(key)
@@ -88,7 +84,14 @@ function isType(key){
         debugger
     }
 }
-var msgPeice = ""
+=======
+let refreshTokenInfo =  JSON.parse(fs.readFileSync('/var/www/charleskiel.dev/mm/auth/refresh_token.json'))
+let access_token =  JSON.parse(fs.readFileSync('/var/www/charleskiel.dev/mm/auth/access_token.json'))
+let accountInfo =  JSON.parse(fs.readFileSync('/var/www/charleskiel.dev/mm/auth/account_info.json'))
+let principals = JSON.parse(fs.readFileSync('/var/www/charleskiel.dev/mm/auth/user_principals.json'))
+//function principals(){ JSON.parse(fs.readFileSync('/var/www/charleskiel.dev/mm/auth/user_principals.json'), (err) => { if (err) console.error(err); })}
+var stocktestlist = []
+var futurestestlist = ["/ES","/MYM","/MNQ","/M2K","/MES","/BTC"]
 
 jsonToQueryString = (json) => {return Object.keys(json).map(function (key) {return (encodeURIComponent(key) +"=" +encodeURIComponent(json[key]));}).join("&");};
 
@@ -372,8 +375,8 @@ function getdata(endpoint){
 function validatetoken(){
     console.log(moment(Date.now()).format() + ": Validating Token")
 
-    const access_token = JSON.parse(fs.readFileSync('./auth/access_token.json'))
-    const refreshTokenInfo = JSON.parse(fs.readFileSync('./auth/refresh_token.json'))
+    const access_token = JSON.parse(fs.readFileSync('/var/www/charleskiel.dev/mm/auth/access_token.json'))
+    const refreshTokenInfo = JSON.parse(fs.readFileSync('/var/www/charleskiel.dev/mm/auth/refresh_token.json'))
     
     console.log(moment(Date.now()).format() + ": =================================================")
     console.log(moment(Date.now()).format() + `: Access code expires ${moment(access_token.created_on + access_token.expires_in).fromNow()}`)
@@ -393,8 +396,8 @@ function validatetoken(){
 function validateprincipals(){
     console.log(moment(Date.now()).format() + ": Validating Pricipals")
 
-    const refreshTokenInfo = JSON.parse(fs.readFileSync('./auth/refresh_token.json'))
-    const user_principals = JSON.parse(fs.readFileSync('./auth/user_principals.json'))
+    const refreshTokenInfo = JSON.parse(fs.readFileSync('/var/www/charleskiel.dev/mm/auth/refresh_token.json'))
+    const user_principals = JSON.parse(fs.readFileSync('/var/www/charleskiel.dev/mm/auth/user_principals.json'))
     
     console.log(moment(Date.now()).format() + `: Principals updated ${moment(user_principals.streamerInfo.tokenTimestamp).fromNow()}, expires ${moment(user_principals.tokenExpirationTime).fromNow()}`)
     console.log(moment(Date.now()).format() + moment(user_principals.streamerInfo.tokenTimestamp).format())
@@ -420,6 +423,7 @@ function validateprincipals(){
                     //debugger
                     console.log("writing Principals File")
                     fs.writeFileSync("./auth/user_principals.json", JSON.stringify(data, undefined, 4), (err) => { if (err) throw err; })
+                    fs.writeFileSync("/var/www/charleskiel.dev/mm/auth/user_principals.json", JSON.stringify(data, undefined, 4), (err) => { if (err) throw err; })
                     console.log(moment(Date.now()).format() + `: principals updated. Expires ${moment(user_principals.tokenExpirationTime).fromNow()} `);
                 }
                 //debugger
@@ -434,8 +438,8 @@ function validateprincipals(){
 
 function refreshAccessToken(){
 
-    const refreshTokenInfo = JSON.parse(fs.readFileSync('./auth/refresh_token.json'))
-    const accountInfo = JSON.parse(fs.readFileSync('./auth/account_info.json'))
+    const refreshTokenInfo = JSON.parse(fs.readFileSync('/var/www/charleskiel.dev/mm/auth/refresh_token.json'))
+    const accountInfo = JSON.parse(fs.readFileSync('/var/www/charleskiel.dev/mm/auth/account_info.json'))
     
     const options = {
         url: 'https://api.tdameritrade.com/v1/oauth2/token',
@@ -467,7 +471,7 @@ function refreshAccessToken(){
             data.created_on = Date.now();
             data.expires_on = Date.now() + data.expires_in
             
-            fs.writeFileSync("./auth/access_token.json", JSON.stringify(data, undefined, 4), (err) => { if (err) throw err; })
+            fs.writeFileSync("/var/www/charleskiel.dev/mm/auth/access_token.json", JSON.stringify(data, undefined, 4), (err) => { if (err) throw err; })
             
             console.log(moment(Date.now()).format() + ": Access Token updated. Expires in " + data.expires_in + " seconds");
             //debugger
@@ -477,7 +481,7 @@ function refreshAccessToken(){
 }
 
 function getAuthorizationHeader(){
-    const access_token = JSON.parse(fs.readFileSync('./auth/access_token.json'))
+    const access_token = JSON.parse(fs.readFileSync('/var/www/charleskiel.dev/mm/auth/access_token.json'))
     return {
         'Authorization': 'Bearer ' + access_token.access_token  
     };
@@ -618,14 +622,14 @@ function msgRec(msg){
                         } else {
                             console.log(moment(Date.now()).format() + `: LOGIN FAILED!! [code: ${m.content.code} msg:${m.content.msg}`);
                         }
-                        break;
+                        
                     case "CHART_EQUITY":
                         //console.log(moment(Date.now()).format() + m)
-                        break;
+                        
                     case "ACTIVES_NASDAQ":
-                        break;
+                        
                     case "ACTIVES_NASDAQ":
-                        break;
+                        
                     default:
                     //console.log(moment(Date.now()).format() + `: Default Message ${msg}`)
                     console.log(m)
@@ -637,7 +641,6 @@ function msgRec(msg){
 };
 
 function sendMsg(c){
-    console.log(moment(Date.now()).format() + `: Sending:` ,c);
     ws.send(JSON.stringify(c));
 };
 function sendServiceMsg(_type,_keys,){
@@ -777,7 +780,7 @@ function subscribe(){
 
 
 function equityTick(tick){
-    if (tick.key === "TWTR") console.log(`${moment(Date.now()).format()}:   ${tick['11']}`)
+    if (tick.key === "TWTR") console.log(`${moment(Date.now()).format()}`,tick)
     stocks[tick.key] = {...stocks[tick.key],...tick}
 };
 
