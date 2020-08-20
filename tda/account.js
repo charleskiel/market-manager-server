@@ -139,4 +139,12 @@ module.exports.tick = (acc) =>{
 
 
 
-
+module.exports.accountStatus = () => {
+	getdata(`https://api.tdameritrade.com/v1/accounts?fields=positions,orders`)
+	    .then((data) => {
+		   tick(data)
+		   watchPositions()
+		   console.log(account.positions())
+	    }
+	)
+ }
