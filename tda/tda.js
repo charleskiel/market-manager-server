@@ -44,12 +44,6 @@ module.exports.load = function() {
 
 }
 
-    
-// function errorHandler(err, req, res, next){
-//     res.status(500)
-//     res.render('error', { error: err })
-// }
-
 
 module.exports.priceHistory = (req) => {
     return new Promise((result, error) => {
@@ -148,14 +142,7 @@ function watchPositions(){
     if (tdaSocket.status = "connected") monitor.add(account.positions().map(p => p.instrument.symbol))
 }
 module.exports.state = () => {
-    getdata.
-    // test = _.values(monitor.list() , function (key,value) {
-    //     return [key] = {key : value}}
-    // )
-    // for (var stock in monitor.list()){
-    //     console.log(stock)
-    //     console.log(monitor.list()[stock])
-    // }
+
     console.log({...monitor.list()})
     // console.log(test)
     return new Promise((result,error) =>{
