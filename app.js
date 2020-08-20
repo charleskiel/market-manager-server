@@ -36,6 +36,8 @@ var _ = require('lodash');
 // )
 
 
+
+
 //GET home route
 app.get('/accountinfo', (req, res,next) => {
      let access_token = JSON.parse(fs.readFileSync("./tda/access_token.json", (err) => { if (err) console.error(err); }))
