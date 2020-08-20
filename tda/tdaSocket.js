@@ -218,7 +218,7 @@ module.exports.sendServiceMsg = (_type, _keys) => {
 	switch (_type) {
 		case "equities":
 		case "indexes":
-			console.log(moment(Date.now()).format() + `: Subscribing to ${monitor.equities().length} stocks `);
+			console.log(moment(Date.now()).format() + `: Subscribing to ${monitor.equities().length} ${_type}`);
 			sendMsg({
 				requests: [
 					{
@@ -306,6 +306,16 @@ module.exports.sendServiceMsg = (_type, _keys) => {
 						},
 					},{
 						service: "LEVELONE_FUTURES",
+						requestid: requestid(),
+						command: "SUBS",
+						account: auth.accountId(),
+						source: auth.appId(),
+						parameters: {
+							keys: [..._keys].toString(),
+							fields: "0,1,2,3,4,8,9,12,13,14,16,18,19,20,23,24,25,26,27,28,31",
+						},
+					},{
+						service: "FUTURES_BOOK",
 						requestid: requestid(),
 						command: "SUBS",
 						account: auth.accountId(),

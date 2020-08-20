@@ -68,11 +68,11 @@ module.exports.equities = () => {
 	})
 	return result
 },
-module.exports.indexes = () => { return _.keys(products).filter(key => (key.includes("$") && !key.includes("/"))) },
-module.exports.futures = () => { return _.keys(products).filter(key => (!key.includes("$") && key.includes("/"))) },
+module.exports.indexes = () => { return _.keys(products).filter(key => key.includes("$")) },
+module.exports.futures = () => { return _.keys(products).filter(key => key.includes("/")) },
 module.exports.options = () => { 
-	let e = _.keys(products).filter(key => (key.includes("_") ))
-	return _.keys(products).filter(key => (key.includes("_") ))
+	let e = _.keys(products).filter(key => key.includes("_") )
+	return _.keys(products).filter(key => key.includes("_") )
 	}
 	
 
@@ -88,26 +88,23 @@ module.exports.add = (items) => {
 		if (!products[key]) {
 			if (!products[key]) products[key] = { key: key, spark: [] }
 			let type = isType(key)
-			if (type == "indexes") { indexesChange = true }
-			if (type == "equities") { equitiesChange = true }
-			if (type == "futures") { futuresChange = true }
-			if (type == "options") { optionsChange = true }
+			if (type === "indexes") { indexesChange = true }
+			if (type === "equities") { equitiesChange = true }
+			if (type === "futures") { futuresChange = true }
+			if (type === "options") { optionsChange = true }
 		}
 	})
-	if (tdaSocket.status === "connected") {
+	if (optionsChange || indexesChange || futuresChange) { console.log(optionsChange, indexesChange, futuresChange); }
+	if (equitiesChange) { 
+		let e = [...module.exports.defaultStocks, ...module.exports.equities(), ...module.exports.indexes()]
 		
-		if (optionsChange || indexesChange || futuresChange) { console.log(optionsChange, indexesChange, futuresChange); }
-		if (equitiesChange) { 
-			let e = [...module.exports.defaultStocks, ...module.exports.equities(), ...module.exports.indexes()]
-			
-			tdaSocket.sendServiceMsg("equities", [...module.exports.defaultStocks, ...module.exports.equities(), ...module.exports.indexes()]); }
-		if (futuresChange) { 
-			e = module.exports.futures()
-			tdaSocket.sendServiceMsg("futures", e) }
-		if (optionsChange) { 
-			e = module.exports.options()
-			tdaSocket.sendServiceMsg("options", e) }
-	}
+		tdaSocket.sendServiceMsg("equities", [...module.exports.defaultStocks, ...module.exports.equities(), ...module.exports.indexes()]); }
+	if (futuresChange) { 
+		e = module.exports.futures()
+		tdaSocket.sendServiceMsg("futures", e) }
+	if (optionsChange) { 
+		e = module.exports.options()
+		tdaSocket.sendServiceMsg("options", e) }
 }
 
 
@@ -141,13 +138,14 @@ module.exports.addChartData = (m) => {
 			break;
 	}
 	//console.log(products[m.key])
-	if (products[m.key] === undefined){
+	if (!products[m.key]){
 		//debugger
 		products[m.key] = {...m, ...{spark: []}}
-	}
+	}else if ( !products[m.key].spark ) { products[m.key].spark = []}
+
 	products[m.key].spark.push(m);
 	while (products[m.key].spark.length > 0 && products[m.key].spark[0][7] < (Date.now() - (24*60*60*1000))){
-		console.log(`popping old chart data ${moment( products[m.key].spark[0][7]).startOf('day').fromNow()}`  )
+		//console.log(`popping old chart data ${moment( products[m.key].spark[0][7]).startOf('day').fromNow()}`  )
 		products[m.key].spark.shift()
 	}
 }

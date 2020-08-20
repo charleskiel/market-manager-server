@@ -16,7 +16,7 @@ module.exports.appId = () => {
 	return principals.streamerInfo.appId;
 }
 
-
+module.exports.checkCommandKey = (key) => {if (key === "Denver"){return true} else {return false}}
 
 module.exports.refresh = () => {
 	return new Promise((ok, fail) => {

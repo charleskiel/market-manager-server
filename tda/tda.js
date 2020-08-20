@@ -34,7 +34,8 @@ var partmsg = ""
 module.exports.load = function() { 
     auth.refresh().then(() => {
 
-        watchlists.getWatchlists().then( () => {
+        watchlists.getWatchlists().then( (lists) => {
+            console.log(lists)
             //debugger
             tdaSocket.load()
             })
@@ -140,21 +141,14 @@ function status(){
         }
     )
 }
-module.exports.accountStatus = () => {
-    getdata(`https://api.tdameritrade.com/v1/accounts?fields=positions,orders`)
-        .then((data) => {
-            account.tick(data)
-            watchPositions()
-            console.log(account.positions())
-        }
-    )
-}
+
 
 function watchPositions(){
     //console.log(account.status())
     if (tdaSocket.status = "connected") monitor.add(account.positions().map(p => p.instrument.symbol))
 }
 module.exports.state = () => {
+    getdata.
     // test = _.values(monitor.list() , function (key,value) {
     //     return [key] = {key : value}}
     // )
@@ -408,20 +402,36 @@ console.log(socket)
         console.log(`Received messages from ${socket._socket.remoteAddress}`, msg)
 
         msg = JSON.parse(msg)
-        msg.requests.forEach((m) => {
+        msg.requests.forEach((m) => { 
             console.log(`Received msg from ${socket._socket.remoteAddress}`,msg)
             switch (m.service) {
                 case "ADMIN":
-                    if (m.command === "LOGIN" && m.username === "demo" && m.password === "password")
-                        {
-                            clientSockets[socket] = m.username
-                            sendToClient(socket,{hello: "Hello!"})
-                        }
-                }
+                    switch (m.command){
+                        case "LOGIN":
+                            if( m.username === "demo" && m.password === "password"){
+                                clientSockets[socket] = {username : m.username, socket : socket, monitor: []}
+                                sendToClient(socket,{hello: "Hello!"})
+                            }
+                            break;
+                        case "SETCOMMANDKEY":
+                            if(auth.checkCommandKey(m.commandKey)){
+                                clientSockets[socket] = m.username
+                                sendToClient(socket,{
+                                    response: [
+                                        {
+                                            service: "ADMIN",
+                                            command: "SETTING",
+                                            setting: {commandKeyStatus: "granted"},
+                                            requestId: m.requestId,
+                                        },
+                                    ]
+                            })
+
+                            break;}
+                    }
             }
-        )
         
-		if (msg.messageType == "login") {
+		if (msg.me == "login") {
 			//clientSockets[socket] = new user(msg.data, socket, loggedin)
 			console.log(`Logged in: ${JSON.stringify(clientSockets[socket])}`)
 			//clientSockets[socket].socket.send(JSON.stringify(clientSockets[socket]))
@@ -432,7 +442,7 @@ console.log(socket)
         
     })
         
-	
+    })
 
 	socket.on('open', msg => {
         console.log("Connected to Server ", msg);
@@ -441,7 +451,7 @@ console.log(socket)
             response: [
                 {
                     service : "ADMIN", 
-                    requestid : "1", 
+                    requestId : "1", 
                     command : "LOGIN", 
                     timestamp : 1400593928788, 
                     content : {
@@ -465,9 +475,9 @@ function sendToClient(socket,message) {
     console.log(`tosendmessage`, JSON.stringify(message))
     
 	
-    if (clientSockets[socket].readyState === 1 ){
+    if (socket.readyState === 1 ){
         console.log(`Sending message`, JSON.stringify(message))
-        clientSockets[socket].send(JSON.stringify(message))
+        socket.send(JSON.stringify(message))
     }
     	
 }
