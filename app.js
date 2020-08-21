@@ -14,7 +14,6 @@ const bodyParser = require('body-parser');
 app.use(function(req, res, next) {
      res.header("Access-Control-Allow-Origin", "*");
      res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
-cd
      next();
 });
 //app.use(bodyParser.urlencoded({ extended: true }));
@@ -35,6 +34,8 @@ var _ = require('lodash');
 //      })
 // })
 // )
+
+
 
 
 //GET home route
@@ -120,8 +121,7 @@ app.get('/accountStatus', (req, res) => {
 
 app.get('/getWatchlists', (req, res) => {
      tda.getWatchlists().then(data => {
-          console.log(`Sucuess: ${data}`)
-          console.log(data)
+          console.log(`Sucuess:`, data)
           res.send(JSON.stringify(data, undefined, 4));
      }, error => {
           console.log(`${error}`)

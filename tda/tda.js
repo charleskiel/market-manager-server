@@ -5,33 +5,26 @@ const moment = require('moment');
 const WebSocket = require('websocket').w3cwebsocket;
 const os = require('os')
 const mysql = require('../mysql.js');
+const tdaSocket = require('./tdaSocket');
+const monitor = require('./monitor')
+const account = require('./account')
+const auth = require('./auth')
+const watchlists = require('./watchlists')
 
 
-let _requestid = 0; function requestid(){return _requestid += +1;};
-let _msgcount = 0; function msgcount(){return _msgcount += +1;};
-let _packetcount = 0; function packetcount(){return _packetcount += +1;};
+const getdata = require("./getdata").getData
 
-
-
-var futuresList = [];
-var stockList = [];
-var indexList = [];
-var eftList = [];
-var optionList = [];
 
 
 function getPriority(pid) { return os.getPriority(pid) }
 function setPriority(id, priority) { return os.setPriority(id, priority) }
-var account = {}
-var stocks = {}
-var futures = {}
-var actives = {
-    ACTIVES_NASDAQ : {},
-    ACTIVES_NYSE : {},
-    ACTIVES_OPTIONS : {},
-    ACTIVES_OTCBB : {}
-}
 
+
+//var account = {}
+var stocks = {}
+
+let connected = false
+//let principals = JSON.parse(fs.readFileSync('./auth/user_principals.json'))
 
 let refreshTokenInfo =  JSON.parse(fs.readFileSync('./auth/refresh_token.json'))
 let access_token =  JSON.parse(fs.readFileSync('./auth/access_token.json'))
@@ -84,7 +77,7 @@ function isType(key){
         debugger
     }
 }
-=======
+
 let refreshTokenInfo =  JSON.parse(fs.readFileSync('/var/www/charleskiel.dev/mm/auth/refresh_token.json'))
 let access_token =  JSON.parse(fs.readFileSync('/var/www/charleskiel.dev/mm/auth/access_token.json'))
 let accountInfo =  JSON.parse(fs.readFileSync('/var/www/charleskiel.dev/mm/auth/account_info.json'))
@@ -93,96 +86,22 @@ let principals = JSON.parse(fs.readFileSync('/var/www/charleskiel.dev/mm/auth/us
 var stocktestlist = []
 var futurestestlist = ["/ES","/MYM","/MNQ","/M2K","/MES","/BTC"]
 
-jsonToQueryString = (json) => {return Object.keys(json).map(function (key) {return (encodeURIComponent(key) +"=" +encodeURIComponent(json[key]));}).join("&");};
 
 
 
-var ws = new WebSocket("wss://streamer-ws.tdameritrade.com/ws")
+module.exports.getWatchlists = watchlists.getWatchlists
 var partmsg = ""
 module.exports.load = function() { 
-    module.exports.refresh()
-    
-    ws.onopen = function () {
-        //console.log(moment(Date.now()).format() + principals.accounts);
-        console.log(moment(Date.now()).format() + ": Connected to Server");
-        
-        //console.log(moment(Date.now()).format() + login)
-        sendMsg({
-            requests: [
-                {
-                    service: "ADMIN",
-                    command: "LOGIN",
-                    requestid: requestid(),
-                    account: principals.accounts[0].accountId,
-                    source: principals.streamerInfo.appId,
-                    parameters: {
-                        credential: jsonToQueryString(credentials()),
-                        token: principals.streamerInfo.token,
-                        version: "1.0",
-                        qoslevel: 0
-                    }
-                }
-            ]
+    auth.refresh().then(() => {
+
+        watchlists.getWatchlists().then( (lists) => {
+            console.log(lists)
+            //debugger
+            tdaSocket.load()
+            })
         }
-    )}
-    ws.onmessage = function (event) {
+    )
 
-        if (event.data.charAt(0) === "{" && event.data.charAt(event.data.length - 1) === "}") {
-            msgPeice = ""
-        }
-        else if (event.data.charAt(0) === "{" && event.data.charAt(event.data.length - 1) !== "}")
-        {
-            msgPeice += event.data
-        }
-        else if (event.data.charAt(0) !== "{" && event.data.charAt(event.data.length - 1) === "}")
-        { 
-            event.data = msgPeice + event.data
-        }
-            
-
-        event.data = event.data.replace(` "C" `, ` -C- `)
-        event.data = event.data.replace(` "C" `, ` -C- `)
-        event.data = event.data.replace(` "C" `, ` -C- `)
-
-
-        try {
-            //console.log(event.data)
-            msgRec(JSON.parse(event.data));
-            
-        } catch (error) {
-            console.log("\x1b[41m",'Message from server ', event.data);
-            console.log("\x1b[41m", error)
-            console.log("\x1b[40m")
-              if (partmsg === "")
-            {partmsg = event.data} 
-            else 
-            { partmsg = partmsg + event.data; msgRec(partmsg);partmsg = ""}
-        }
-
-        //setState({ packetcount: state.packetcount += 1 })
-        //console.log(msg)
-    }
-
-    ws.onerror = function(error){
-        console.log(error);
-    };
-    
-    ws.onclose = function () { console.log(moment(Date.now()).format() + ': echo-protocol Connection Closed'); process.exit();}
-}
-
-module.exports.refresh = () => {
-    console.log(moment(Date.now()).format() + ": Validating credientials")
-    validatetoken()
-    validateprincipals()
-    refreshAccessToken()
-    module.exports.getWatchlists().then(data => {
-        //console.log(data);
-    })
-}
-    
-function errorHandler(err, req, res, next){
-    res.status(500)
-    res.render('error', { error: err })
 }
 
 
@@ -247,11 +166,11 @@ module.exports.status = () => {
         app: {
 
             systemtime: Date.now(),
-            msgcount: _msgcount,
-            packetcount: _packetcount,
-            account: account,
+            tdaSocket: tdaSocket.status,
+            account: account.status(),
+            uptime: process.uptime()
         },
-        actives : actives
+        actives : monitor.actives
     }
     
 }
@@ -259,45 +178,40 @@ module.exports.status = () => {
 function status(){
     getdata(`https://api.tdameritrade.com/v1/accounts?fields=positions,orders`)
         .then((data) => {
-            account = data
+            account.tick(data)
             
             results = {
                 service: "status",
                 timestamp: Date.now(),
                 content: [{
                     systemtime: Date.now(),
-                    msgcount: _msgcount,
-                    packetcount: _packetcount,
                     databaseWriteCount: mysql.writecount,
                     account: data,
                 }],
-                actives : actives
+                actives : monitor.actives
             }
             dbWrite(results)
             watchPositions()
         }
     )
 }
-module.exports.accountStatus = () => {
-    getdata(`https://api.tdameritrade.com/v1/accounts?fields=positions,orders`)
-        .then((data) => {
-            account = data
-            watchPositions()
-            console.log(account[0].securitiesAccount.positions)
-        }
-    )
-}
+
 
 function watchPositions(){
-    //console.log(account[0].securitiesAccount.positions.map(p => p.instrument.symbol))
-    monitor.add(account[0].securitiesAccount.positions.map(p => p.instrument.symbol))
+    //console.log(account.status())
+    if (tdaSocket.status = "connected") monitor.add(account.positions().map(p => p.instrument.symbol))
 }
 module.exports.state = () => {
+
+    console.log({...monitor.list()})
+    // console.log(test)
     return new Promise((result,error) =>{
         result({
-                actives : actives,
-                stocks : monitor.list(),
-                account
+                actives : monitor.actives,
+                stocks : {...monitor.list()},
+                account: account.status(),
+                
+                
             })
         error(fail)
     })
@@ -502,111 +416,12 @@ function getAuthorizationHeader(){
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-function credentials () {
-    var tokenTimeStampAsDateObj = new Date(
-        principals.streamerInfo.tokenTimestamp
-    );
-    var tokenTimeStampAsMs = tokenTimeStampAsDateObj.getTime();
-    return {
-        userid: principals.accounts[0].accountId,
-        token: principals.streamerInfo.token,
-        company: principals.accounts[0].company,
-        segment: principals.accounts[0].segment,
-        cddomain: principals.accounts[0].accountCdDomainId,
-        usergroup: principals.streamerInfo.userGroup,
-        accesslevel: principals.streamerInfo.accessLevel,
-        authorized: "Y",
-        timestamp: tokenTimeStampAsMs,
-        appid: principals.streamerInfo.appId,
-        acl: principals.streamerInfo.acl,
-    };
-};
 
-
-
-
-function msgRec(msg){
-    sendToClients(msg)
-    console.log(msg)
-    packetcount()
-    if (msg.notify) {
-        console.log("\x1b[36m%s\x1b[0m", moment.unix(msg.notify[0].heartbeat).format("LTS") + ` [${"Heartbeat".padEnd(16, " ")}] :: heartbeat: ${moment.unix(msg.notify[0].heartbeat).format("LLLL")}`);
-        console.log(moment(Date.now()).format("LTS") + `: heartbeat: ${moment.unix(msg.notify[0].heartbeat).format("LLLL")}`)
-        //console.log(moment(Date.now()).format() + msg)
-    } else {
-        if (msg.data) {
-            msg.data.forEach((m) => {
-                msgcount()
-                //console.log(moment(Date.now()).format() + m)
-                dbWrite(m)
-                switch (m.service) {
-                    case "QUOTE":
-                        m.content.forEach(eq => equityTick(eq));
-                        break;
-                    case "CHART_FUTURES":
-                        m.content.forEach(eq => equityTick(eq));
-                        break;
-                    case "LEVELONE_FUTURES":
-                        m.content.forEach(eq => equityTick(eq));
-                        break;
-                    case "ACTIVES_NASDAQ":case "ACTIVES_NYSE": case "ACTIVES_OTCBB":
-                        var split = m.content[0]["1"].split(";")
-                        if (split.length > 1){
-                            var o = {
-                                "timestamp" : m.timestamp,
-                                "ID:" : split[0],
-                                "sampleDuration" : split[1],
-                                "Start Time" : split[2],
-                                "Display Time" : split[3],
-                                "GroupNumber" : split[4],
-                                "groups" : []}
-                                split = (split[6].split(":"))
-                                o.totalVolume = (split[0])
-                                o.groupcount = split[1]
-                                for (let i = 3; i < split.length; i += 3) {
-                                    if (!stocks[split[i]]) stocks[split[i]] = {key : split[i]}
-                                    o.groups.push({symbol: split[i], volume: split[i+1], priceChange: split[i+2]}) 
-                            }
-                            actives[m.service][o.sampleDuration] = o
-                            
-                        }
-                        break;
-                    case "ACTIVES_OPTIONS":
-                        //console.log(moment(Date.now()).format() + ": OPTIONS Activies")
-                        //console.log(m)
-                        //debugger
-                        m.content.map(act => {
-                            
-                            var split = act["1"].split(";")
-                            if (split[1].length > 1) {
-                                var o = {
-                                    "timestamp" : m.timestamp,
-                                    "ID:" : split[0],
-                                    "sampleDuration" : split[1],
-                                    "Start Time" : split[2],
-                                    "Display Time" : split[3],
-                                    "GroupNumber" : split[4],
-                                    "groups": []
-                                }
+tdaSocket.event.on("*", function (msg) {
+    //console.log(msg)
+    relayToClients(msg)
     
-                                split = (split[6].split(":"))
-                                o.totalVolume = (split[3])
-                                o.groupcount = split[1]
-                                //o.sampleDuration
-                                for (let i = 3; i < split.length; i += 4) {
-                                    //if (!this.state[split[i]]) this.stockTickerSubscribe([split[i]])
-                                    o.groups.push({symbol: split[i], name: split[i+1], volume: split[i+2], percentChange: split[i+3]}) 
-                                }
-                                
-                                //console.log(moment(Date.now()).format() + `: Default Message: ` + m.service, m);
-                                //console.log(moment(Date.now()).format() + m);
-                                actives.ACTIVES_OPTIONS[o.sampleDuration] = o
-                            }
-                        })
-                }
-            });
-        }
-
+    if (msg.content) {
         if (msg.response) {
             msg.response.forEach((m) => {
                 switch (m.service) {
@@ -679,104 +494,84 @@ function sendServiceMsg(_type,_keys,){
                 }]
             });
         
-            sendMsg({
-                requests: [{
-                    service : "NEWS_HEADLINE", requestid: requestid(), command : "SUBS", account : principals.accounts[0].accountId, source : principals.streamerInfo.appId,
-                    parameters : {
-                        keys: _keys.toString(),
-                        fields : "0,1,2,3,4,5,6,7,8,9,10"
+        switch (msg.service) {
+            case "QUOTE": case "LEVELONE_FUTURES": case "TIMESALE_FUTURES": case "TIMESALE_EQUITY":
+                msg.content.forEach(eq => {
+                    //if (!monitor.exists(eq.key)) { monitor.add([eq.key]) }
+                    monitor.tick(eq)
+                });
+                break;
+            case "CHART_FUTURES": case "CHART_EQUITY":
+                msg.content.forEach(eq => {
+                    //if (!monitor.exists(eq.key)) { monitor.add([eq.key]) }
+                    monitor.addChartData(eq)
+                });
+                break;
+            case "ACTIVES_NASDAQ": case "ACTIVES_NYSE": case "ACTIVES_OTCBB":
+                var split = msg.content[0]["1"].split(";")
+                if (split.length > 1) {
+                    var o = {
+                        "timestamp": msg.timestamp,
+                        "ID:": split[0],
+                        "sampleDuration": split[1],
+                        "Start Time": split[2],
+                        "Display Time": split[3],
+                        "GroupNumber": split[4],
+                        "groups": []
                     }
-                }]
-            })
-            break;
-        case "futures" :
-            console.log(moment(Date.now()).format() + `: Subscribing to ${monitor.futures().length} futures `)
-            sendMsg({
-                requests: [{
-                    service : "CHART_FUTURES", requestid: requestid(), command : "SUBS", account : principals.accounts[0].accountId,  source : principals.streamerInfo.appId,    
-                    parameters : {
-                        keys: monitor.futures().toString(),
-                        fields : "0,1,2,3,4,5,6,7"
+                    split = (split[6].split(":"))
+                    o.totalVolume = (split[0])
+                    o.groupcount = split[1]
+                    for (let i = 3; i < split.length; i += 3) {
+                        if (!stocks[split[i]]) stocks[split[i]] = { key: split[i] }
+                        o.groups.push({ symbol: split[i], volume: split[i + 1], priceChange: split[i + 2] })
                     }
-                }]
-            })
+                    monitor.actives[msg.service][o.sampleDuration] = o
                     
-            sendMsg({
-                requests: [{
-                    service : "LEVELONE_FUTURES", requestid : requestid(), command : "SUBS", account : principals.accounts[0].accountId,  source : principals.streamerInfo.appId,    
-                    parameters : {
-                        keys: monitor.futures().toString(),
-                        fields : "0,1,2,3,4,8,9,12,13,14,16,18,19,20,23,24,25,26,27,28,31"
+                }
+                break;
+            case "ACTIVES_OPTIONS":
+                //console.log(moment(Date.now()).format() + ": OPTIONS Activies")
+                //console.log(m)
+                //debugger
+                msg.content.map(act => {
+                    
+                    var split = act["1"].split(";")
+                    if (split[1]) {
+                        var o = {
+                            "timestamp": msg.timestamp,
+                            "ID:": split[0],
+                            "sampleDuration": split[1],
+                            "Start Time": split[2],
+                            "Display Time": split[3],
+                            "GroupNumber": split[4],
+                            "groups": []
+                        }
+
+                        split = (split[6].split(":"))
+                        o.totalVolume = (split[3])
+                        o.groupcount = split[1]
+                        //o.sampleDuration
+                        for (let i = 3; i < split.length; i += 4) {
+                            //if (!this.state[split[i]]) this.stockTickerSubscribe([split[i]])
+                            o.groups.push({ symbol: split[i], name: split[i + 1], volume: split[i + 2], percentChange: split[i + 3] })
+                        }
+                        
+                        //console.log(moment(Date.now()).format() + `: Default Message: ` + msg.service, m);
+                        //console.log(moment(Date.now()).format() + m);
+                        monitor.actives.ACTIVES_OPTIONS[o.sampleDuration] = o
                     }
+                })
+                break;
+            default:
+                console.log(msg)
+                console.log(msg.service + " not handled")
+				console.log(`\x1b[44m [${moment(Date.now()).format()}] \x1b[0m  ${msg.service}  \x1b[41m ${msg.content.code}  \x1b[0m ${msg.content.msg}`, msg);
                 
-                }]
-            })
-            
-            sendMsg({
-                requests: [{
-                    service : "TIMESALE_FUTURES", requestid: requestid(), command : "SUBS", account : principals.accounts[0].accountId,  source : principals.streamerInfo.appId,    
-                    parameters : {
-                        keys: monitor.futures().toString(),
-                        fields : "0,1,2,3,4"
-                    }
-                }]
-            })
-        
-            break;
-        case "options" :
-            break;
-        case "ACTIVES_OTCBB":
-        case "ACTIVES_NYSE":
-        case "ACTIVES_NASDAQ":
-        case "ACTIVES_OPTIONS":
-            sendMsg({
-                requests: [
-                    {
-                        service: _type,
-                        requestid: requestid(),
-                        command: "SUBS",
-                        account: principals.accounts[0].accountId,
-                        source: principals.streamerInfo.appId,
-                        parameters: {
-                            keys: _keys.toString(),
-                            fields: "0,1",
-                        },
-                    }
-                ]
-            })
-
+                //debugger
+        }
     }
-
-}
-
-function initStream(){
-    sendServiceMsg("ACTIVES_NASDAQ",["NASDAQ-60","NASDAQ-300","NASDAQ-600","NASDAQ-1800","NASDAQ-3600","NASDAQ-ALL"])
-    sendServiceMsg("ACTIVES_OTCBB",["OTCBB-60","OTCBB-300","OTCBB-600","OTCBB-1800","OTCBB-3600","OTCBB-ALL"])
-    sendServiceMsg("ACTIVES_NYSE",["NYSE-60","NYSE-300","NYSE-600","NYSE-1800","NYSE-3600","NYSE-ALL"])
-    sendServiceMsg("ACTIVES_OPTIONS",["OPTS-DESC-60,OPTS-DESC-300,OPTS-DESC-600,OPTS-DESC-1800,OPTS-DESC-3600,OPTS-DESC-ALL"])
-
-    // sendMsg({
-    //     requests: [
-    //         {
-    //             service: "ADMIN",
-    //             requestid: requestid(),
-    //             command: "SUBS",
-    //             account: principals.accounts[0].accountId,
-    //             source: principals.streamerInfo.appId,
-    //             parameters: {"qoslevel": "5"},
-    //         },
-    //     ],
-    // });
-}
-
-var watchlists = {}
-
-function subscribe(){
-      
-    
-    
-
-}
+})
 
 
 function equityTick(tick){
@@ -837,7 +632,7 @@ function dbWrite(data){
         } //Blue
         else
         {
-            console.log(moment(data.timestamp).format("LTS") + color + ` [${data.service.padEnd(16, " ")}] :: ${JSON.stringify(data.content)}\x1b[37m \x1b[40m`);
+            //console.log(moment(data.timestamp).format("LTS") + color + ` [${data.service.padEnd(16, " ")}] :: ${JSON.stringify(data.content)}\x1b[37m \x1b[40m`);
             str = "INSERT INTO `" + data.service.toUpperCase() + "` (timestamp,content) VALUES (" + data.timestamp + ",'"+ mysql_real_escape_string(JSON.stringify(_content)) + "');"
             color = "\x1b[5m"
         }
@@ -881,9 +676,7 @@ function mysql_real_escape_string (str) {
     });
 }
 
-setInterval(module.exports.refresh,(60*60*1000))
 setInterval(status,1000)
-//setInterval(module.exports.refresh,(30* (60*60*1000)))
 
 
 
@@ -914,23 +707,39 @@ clientSocket.on('connection', function connection(socket) {
 
 console.log(socket)
 	socket.on('message', msg => {
-		console.log(msg);
+        console.log(`Received messages from ${socket._socket.remoteAddress}`, msg)
 
         msg = JSON.parse(msg)
-        msg.requests.forEach((m) => {
-            console.log(`Received msg from ${socket._socket.remoteAddress} => ${msg}`)
+        msg.requests.forEach((m) => { 
+            console.log(`Received msg from ${socket._socket.remoteAddress}`,msg)
             switch (m.service) {
                 case "ADMIN":
-                    if (m.command === "LOGIN" && m.username === "demo" && m.password === "password")
-                        {
-                            clientSockets[socket] = m.username
-                            sendToClient(socket,{hello: "Hello!"})
-                        }
-                }
+                    switch (m.command){
+                        case "LOGIN":
+                            if( m.username === "demo" && m.password === "password"){
+                                clientSockets[socket] = {username : m.username, socket : socket, monitor: []}
+                                sendToClient(socket,{hello: "Hello!"})
+                            }
+                            break;
+                        case "SETCOMMANDKEY":
+                            if(auth.checkCommandKey(m.commandKey)){
+                                clientSockets[socket] = m.username
+                                sendToClient(socket,{
+                                    response: [
+                                        {
+                                            service: "ADMIN",
+                                            command: "SETTING",
+                                            setting: {commandKeyStatus: "granted"},
+                                            requestId: m.requestId,
+                                        },
+                                    ]
+                            })
+
+                            break;}
+                    }
             }
-        )
         
-		if (msg.messageType == "login") {
+		if (msg.me == "login") {
 			//clientSockets[socket] = new user(msg.data, socket, loggedin)
 			console.log(`Logged in: ${JSON.stringify(clientSockets[socket])}`)
 			//clientSockets[socket].socket.send(JSON.stringify(clientSockets[socket]))
@@ -941,16 +750,16 @@ console.log(socket)
         
     })
         
-	
+    })
 
 	socket.on('open', msg => {
-        console.log("Connected to Server ", event);
+        console.log("Connected to Server ", msg);
 
         let login = JSON.stringify({
             response: [
                 {
                     service : "ADMIN", 
-                    requestid : "1", 
+                    requestId : "1", 
                     command : "LOGIN", 
                     timestamp : 1400593928788, 
                     content : {
@@ -961,7 +770,7 @@ console.log(socket)
             ]
         });
         
-        console.log(login)
+        console.log(moment(Date.now()).format(), login)
         this.socket.send(login);
 	})
 
@@ -971,25 +780,23 @@ console.log(socket)
 
 function sendToClient(socket,message) {
     console.log(clientSockets[socket])
-    console.log(`message=> ${JSON.stringify(message)}`)
+    console.log(`tosendmessage`, JSON.stringify(message))
     
 	
-		if (clientSockets[socket].readyState === 1 ){
-			//console.log(`message=====> ${JSON.stringify(message)}`)
-            clientSockets[socket].send(JSON.stringify(message))
-        }
+    if (socket.readyState === 1 ){
+        console.log(`Sending message`, JSON.stringify(message))
+        socket.send(JSON.stringify(message))
+    }
     	
 }
 
 
 
-function sendToClients(message) {
-	console.log(message)
+function relayToClients(message) {
 	clientSocket.clients.forEach( client => {
 		if ( client.readyState === 1 ){
-			console.log(JSON.stringify(message))
+			//console.log("Sending" , JSON.stringify(message))
           	client.send(JSON.stringify(message))
         	}
     	});
 }
-
