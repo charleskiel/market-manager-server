@@ -40,10 +40,10 @@ var _ = require('lodash');
 
 //GET home route
 app.get('/accountinfo', (req, res,next) => {
-     let access_token = JSON.parse(fs.readFileSync("./tda/access_token.json", (err) => { if (err) console.error(err); }))
-     let refresh_token = JSON.parse(fs.readFileSync("./tda/refresh_token.json", (err) => { if (err) console.error(err); }))
-     let account_info = JSON.parse(fs.readFileSync("./tda/account_info.json", (err) => { if (err) console.error(err); }))
-     //JSON.parse(fs.readFileSync("./tda/account_info.json", (err) => { if (err) console.error(err); }))
+     let access_token = JSON.parse(fs.readFileSync("./auth/access_token.json", (err) => { if (err) console.error(err); }))
+     let refresh_token = JSON.parse(fs.readFileSync("./auth/refresh_token.json", (err) => { if (err) console.error(err); }))
+     let account_info = JSON.parse(fs.readFileSync("./auth/account_info.json", (err) => { if (err) console.error(err); }))
+     //JSON.parse(fs.readFileSync("./auth/account_info.json", (err) => { if (err) console.error(err); }))
      res.send(JSON.stringify({
           test: "OK",
           refresh_token: refresh_token,
@@ -51,17 +51,17 @@ app.get('/accountinfo', (req, res,next) => {
           account_info: account_info,
           codeLastUpdated: moment(access_token.updated_on).fromNow(),
           encoded_code: encodeURIComponent(refresh_token.code),
-          principals: JSON.parse(fs.readFileSync("./tda/user_principals.json", (err) => { if (err) console.error(err); }))
+          principals: JSON.parse(fs.readFileSync("./auth/user_principals.json", (err) => { if (err) console.error(err); }))
 
      }, undefined, 4));
 });
 
 //GET home route
 app.get('/tda_callback', (req, res,next) => {
-     let j = JSON.parse(fs.readFileSync("./tda/refresh_token.json", (err) => { if (err) console.error(err); }))
+     let j = JSON.parse(fs.readFileSync("./auth/refresh_token.json", (err) => { if (err) console.error(err); }))
      j.code = decodeURIComponent(req.query.code)
      j.updated_on = Date.now()
-     fs.writeFileSync("./tda/refresh_token.json", JSON.stringify(j, undefined, 4), (err) => { if (err) throw err; })
+     fs.writeFileSync("./auth/refresh_token.json", JSON.stringify(j, undefined, 4), (err) => { if (err) throw err; })
 
      res.send(JSON.stringify(j, undefined, 4));
 
