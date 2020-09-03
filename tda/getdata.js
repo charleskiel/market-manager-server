@@ -34,8 +34,19 @@ module.exports.getInsturment = (key) => {
 		});
 	});
 };
+module.exports.chains = (symbol) => {
+	return new Promise((result, error) => {
+		module.exports.getData(`https://api.tDameritrade.com/v1/marketdata/chains?symbol=${symbol}&includeQuotes=TRUE`)
+			.then((data) => {
+				result(data);
+			})
+			.catch((fail) => {
+				error(fail);
+			});
+	});
+};
 
-exports.getData = (endpoint) => {
+module.exports.getData = (endpoint) => {
     //console.log(moment(Date.now()).format(), endpoint)
     return new Promise((result, fail) => {
         const options = {
