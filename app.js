@@ -139,11 +139,11 @@ app.get('/reddit', (req, res) => {
 
 
 
-app.get('/mm', (req, res) => {
-     console.log(req.path)
-     console.log(req.query)
-     res.sendFile(path.join(__dirname, 'react-mm/build/index.html'))
-});
+// app.get('/mm', (req, res) => {
+//      console.log(req.path)
+//      console.log(req.query)
+//      res.sendFile(path.join(__dirname, 'react-mm/build/index.html'))
+// });
 
 
 
