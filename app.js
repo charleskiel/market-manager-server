@@ -147,14 +147,8 @@ app.get('/mm', (req, res) => {
 
 
 
-// // we will pass our 'app' to 'https' server
 https.createServer({
      key: fs.readFileSync('/etc/letsencrypt/live/charleskiel.dev/privkey.pem', 'utf8'),
      cert: fs.readFileSync('/etc/letsencrypt/live/charleskiel.dev/cert.pem', 'utf8')
 }, app)
      .listen(8000);
-
-// //console.log(tda.keys.Authorization)
-
-//tda.refresh()
-
