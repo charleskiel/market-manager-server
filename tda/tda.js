@@ -155,26 +155,9 @@ tdaSocket.event.on("*", function (msg) {
         if (msg.response) {
             msg.response.forEach((m) => {
                 switch (m.service) {
-                    case "ADMIN":
-                        if (m.content.code === 0) {
-                            console.log(moment(Date.now()).format() + `: Login Sucuess! [code: ${m.content.code} msg:${m.content.msg}`);
-                            initStream()
-                            module.exports.getWatchlists()
-                            .then(data => {
-                                console.log(data)
-                                subscribe()
-                            })
-                        } else {
-                            console.log(moment(Date.now()).format() + `: LOGIN FAILED!! [code: ${m.content.code} msg:${m.content.msg}`);
-                        }
-                        
                     case "CHART_EQUITY":
-                        //console.log(moment(Date.now()).format() + m)
-                        
                     case "ACTIVES_NASDAQ":
-                        
                     case "ACTIVES_NASDAQ":
-                        
                     default:
                     //console.log(moment(Date.now()).format() + `: Default Message ${msg}`)
                     console.log(m)

@@ -17,7 +17,7 @@ app.use(function(req, res, next) {
      next();
 });
 //app.use(bodyParser.urlencoded({ extended: true }));
-//tda.load()
+tda.load()
 //alpaca.collectData()
 var _ = require('lodash');
 
@@ -135,7 +135,6 @@ app.get('/reddit', (req, res) => {
      console.log(req.query)
      res.send("Hello Reddit.")
 });
-
 
 
 

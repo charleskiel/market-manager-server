@@ -68,11 +68,16 @@ module.exports.getData = (endpoint) => {
                 {fail(response.statusMessage)}
             }
             else if (response){
+                let j = JSON.parse(body)
                 switch (response.statusCode) {
                     case 401:
-                        console.log(moment(Date.now()).format() + ': 401 hint: refresh token');
-                        //console.log(moment(Date.now()).format(), refreshAccessToken)
-                        auth.refresh();
+                        if (j.error = "The access token being passed has expired or is invalid.") {debugger}
+                        else {
+
+                            console.log(moment(Date.now()).format() + ': 401 hint: refresh token');
+                            //console.log(moment(Date.now()).format(), refreshAccessToken)
+                            auth.refresh();
+                        }
                         break;
                     default:
                         console.log(moment(Date.now()).format() + `: ERROR: ${response.statuscode}:::  ${response.statusMessage}`);
