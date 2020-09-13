@@ -21,7 +21,7 @@
     "lodash": "^4.17.19",
     "moment": "^2.27.0",
     "mysql": "^2.18.1",
-    "node-fetch": "^2.6.0",
+    "node-fetch": "^2.6.1",
     "reddit": "^1.2.0",
     "request": "^2.88.2",
     "source-map-loader": "^0.2.4",
