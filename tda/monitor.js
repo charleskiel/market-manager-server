@@ -77,6 +77,7 @@ module.exports.options = () => {
 	
 
 module.exports.exists = (key) => {(products[key]) ? true : false}
+
 module.exports.add = (items) => {
 	let equitiesChange = false
 	let indexesChange = false
@@ -85,16 +86,41 @@ module.exports.add = (items) => {
 
 	
 	items.map(key => {
-		if (!products[key]) {
-			if (!products[key]) products[key] = { key: key, spark: [] }
-			let type = isType(key)
-			if (type === "indexes") { indexesChange = true }
-			if (type === "equities") { equitiesChange = true }
-			if (type === "futures") { futuresChange = true }
-			if (type === "options") { optionsChange = true }
+		//console.log(key)
+		//console.log(key.instrument)
+
+		
+		if (key.instrument) {
+			symbol = key.instrument.symbol
+		} else if (key != "") {
+			symbol = key
+		}
+
+		if (!products[symbol]) {
+
+			
+			let type = isType(symbol)
+			products[symbol] = { key: symbol, assetType: type, spark: [] }
+
+			switch (type){
+				case "equities":
+					equitiesChange = true
+					break;
+				case "indexes":
+					indexesChange = true
+					break;
+				case "futures":
+					futuresChange = true
+					break;
+				case "options":
+					optionsChange = true
+					break;
+
+			}
 		}
 	})
-	if (optionsChange || indexesChange || futuresChange) { console.log(optionsChange, indexesChange, futuresChange); }
+
+	//if (optionsChange || indexesChange || futuresChange) { console.log(optionsChange, indexesChange, futuresChange); }
 	if (equitiesChange) { 
 		let e = [...module.exports.defaultStocks, ...module.exports.equities(), ...module.exports.indexes()]
 		
@@ -114,13 +140,13 @@ module.exports.remove = (items) => {
 		if (products[key])
 			delete products[key]
 		change = true
-	}
-	)
+	})
 }
 
 module.exports.tick = (tick) =>{
 	products[tick.key] = { ...products[tick.key], ...tick }
 }
+
 module.exports.addChartData = (m) => {
 	switch (isType(m.key)){
 		case "equities":
@@ -162,3 +188,5 @@ function isType(key) {
 		debugger;
 	}
 }
+
+

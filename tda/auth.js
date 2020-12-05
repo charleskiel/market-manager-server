@@ -27,7 +27,7 @@ module.exports.refresh = () => {
 				.then((result) => ok(result))
 				.catch((result) => fail(result));
 		});
-		//refreshAccessToken()
+		refreshAccessToken()
 		//console.log(data);
 	});
 };
@@ -52,7 +52,7 @@ function validateAccessToken() {
 					.then(ok("Token Refreshed"))
 					.catch((error) => {
 						console.log(error);
-						debugger;
+						//debugger;
 						fail("Something went wrong");
 					});
 			} else {
@@ -111,10 +111,10 @@ function validateprincipals() {
 						console.log(moment(Date.now()).format(), fail);
 					});
 			} else {
-				console.log(
-					moment(Date.now()).format() +
-						`: Principals OK updated ${moment(data.streamerInfo.tokenTimestamp).fromNow()}, expires ${moment(refreshTokenInfo.expires_on).add(90, "days").fromNow()}.`
-				);
+				// console.log(
+				// 	moment(Date.now()).format() +
+				// 		`: Principals OK updated ${moment(data.streamerInfo.tokenTimestamp).fromNow()}, expires ${moment(refreshTokenInfo.expires_on).add(90, "days").fromNow()}.`
+				// );
 				ok("principals OK")
 			}
 		});
@@ -145,11 +145,8 @@ function refreshAccessToken() {
 
 			console.log(moment(Date.now()).format(), options.form);
 			request(options, function (error, response, body) {
-				console.log(error);
-				console.log(response);
-				console.log(body);
+				console.log(error, response,body);
 				let data = JSON.parse(body);
-				console.log(data);
 				if (data.error == "Invalid ApiKey") {
 					debugger;
 					fail(data.error);
@@ -167,7 +164,7 @@ function refreshAccessToken() {
 						if (err) throw err;
 					});
 					//debugger;
-					setTimeout(refreshAccessToken, data.expires_in * 1000)
+					setTimeout(refreshAccessToken, data.expires_in * 1700)
 					ok("Access Token updated. Expires in " + data.expires_in + " seconds");
 				}
 			});

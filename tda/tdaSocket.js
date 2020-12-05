@@ -88,7 +88,7 @@ module.exports.load = () => {
 			if (packet.notify) {
 				packet.notify.map(p => {
 					module.exports.event.emit("notify", p);
-					console.log("\x1b[36m%s\x1b[0m", moment.unix(p.heartbeat).format("LTS") + ` [${"Heartbeat".padEnd(16, " ")}] :: heartbeat: ${moment.unix(packet.notify[0].heartbeat).format("LLLL")}`);
+					console.log("\x1b[36m%s\x1b[0m", moment.unix(p.heartbeat/1000).format("LTS") + ` [${"Heartbeat".padEnd(16, " ")}] :: heartbeat: ${moment.unix(packet.notify[0].heartbeat/1000).format("LLLL")}`);
 				})
 				//console.log("\x1b[36m%s\x1b[0m", moment.unix(packet.notify[0].heartbeat).format("LTS") + ` [${"Heartbeat".padEnd(16, " ")}] :: heartbeat: ${moment.unix(packet.notify[0].heartbeat).format("LLLL")}`);
 				//console.log(moment(Date.now()).format("LTS") + `: heartbeat: ${moment.unix(packet.notify[0].heartbeat).format("LLLL")}`)
@@ -98,6 +98,7 @@ module.exports.load = () => {
 				if (packet.data) {
 					packet.data.forEach((m) => {
 						msgcount()
+						console.log(packet)
 						module.exports.event.emit(m.service, m)
 					})
 				}
@@ -110,6 +111,7 @@ module.exports.load = () => {
 								if (m.content.code === 0) {
 									socketStatus("connected")
 									console.log(moment(Date.now()).format() + `: Login Sucuess! [code: ${m.content.code} packet:${m.content.packet}`);
+									console.log(m);
 									initStream()
 								} else {
 									socketStatus(`FAILED [code: ${m.content.code} packet:${m.content.packet}`);
@@ -261,32 +263,33 @@ module.exports.sendServiceMsg = (_type, _keys) => {
 						account: auth.accountId(),
 						source: auth.appId(),
 						parameters: {
-							keys: [..._keys].slice(0, 100).toString(),
+							//keys: [..._keys].slice(0, 100).toString(),
+							keys: [..._keys].toString(),
 							fields: "0,1,2,3,4,5,6,7,8,9,10",
 						},
 					},
-					{
-						service: "NEWS_HEADLINELIST",
-						requestid: requestid(),
-						command: "SUBS",
-						account: auth.accountId(),
-						source: auth.appId(),
-						parameters: {
-							keys: [..._keys].slice(0, 100).toString(),
-							fields: "0,1,2,3,4,5,6,7,8,9,10",
-						},
-					},
-					{
-						service: "NEWS_STORY",
-						requestid: requestid(),
-						command: "SUBS",
-						account: auth.accountId(),
-						source: auth.appId(),
-						parameters: {
-							keys: [..._keys].slice(0, 100).toString(),
-							fields: "0,1,2,3,4,5,6,7,8,9,10",
-						},
-					},
+					// {
+					// 	service: "NEWS_HEADLINELIST",
+					// 	requestid: requestid(),
+					// 	command: "SUBS",
+					// 	account: auth.accountId(),
+					// 	source: auth.appId(),
+					// 	parameters: {
+					// 		keys: [..._keys].slice(0, 100).toString(),
+					// 		fields: "0,1,2,3,4,5,6,7,8,9,10",
+					// 	},
+					// },
+					// {
+					// 	service: "NEWS_STORY",
+					// 	requestid: requestid(),
+					// 	command: "SUBS",
+					// 	account: auth.accountId(),
+					// 	source: auth.appId(),
+					// 	parameters: {
+					// 		keys: [..._keys].slice(0, 100).toString(),
+					// 		fields: "0,1,2,3,4,5,6,7,8,9,10",
+					// 	},
+					// },
 				],
 			});
 			break;

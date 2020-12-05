@@ -22,13 +22,13 @@ function setPriority(id, priority) { return os.setPriority(id, priority) }
 module.exports.chains = require("./getdata").chains
 
 
-module.exports.getWatchlists = watchlists.getWatchlists
+module.exports.getWatchlists = watchlists.fetchWatchlists
 module.exports.accountData = account.accountData
 var partmsg = ""
 module.exports.load = function() { 
     auth.refresh().then(() => {
 
-        watchlists.getWatchlists().then( (lists) => {
+        watchlists.fetchWatchlists().then( (lists) => {
             console.log(lists)
             //debugger
             tdaSocket.load()
@@ -127,8 +127,12 @@ function status(){
 
 function watchPositions(){
     //console.log(account.status())
-    if (tdaSocket.status = "connected") monitor.add(account.positions().map(p => p.instrument.symbol))
+    if (tdaSocket.status = "connected" && account.positions()) {
+        monitor.add(account.positions().map(p => p.instrument.symbol))
+    }
 }
+
+
 module.exports.state = () => {
 
     console.log({...monitor.list()})
@@ -268,7 +272,7 @@ function mysql_real_escape_string (str) {
     });
 }
 
-setInterval(status,1000)
+setInterval(status,10000)
 
 
 
@@ -325,22 +329,18 @@ console.log(socket)
                                             requestId: m.requestId,
                                         },
                                     ]
-                            })
+                                })
 
                             break;}
                     }
             }
         
-		if (msg.me == "login") {
-			//clientSockets[socket] = new user(msg.data, socket, loggedin)
-			console.log(`Logged in: ${JSON.stringify(clientSockets[socket])}`)
-			//clientSockets[socket].socket.send(JSON.stringify(clientSockets[socket]))
-
-        }
-    
-  
-        
-    })
+            if (msg.me == "login") {
+                //clientSockets[socket] = new user(msg.data, socket, loggedin)
+                console.log(`Logged in: ${JSON.stringify(clientSockets[socket])}`)
+                //clientSockets[socket].socket.send(JSON.stringify(clientSockets[socket]))
+            }
+        })
         
     })
 

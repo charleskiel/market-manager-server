@@ -11,53 +11,72 @@ var watchlists = {};
 module.exports.allWatchlistKeys = (lists) => {
 	let list = []
 	lists.map((_list) => {
-		_list.items.map((_item) => {
+		_list.watchlistItems.map((_item) => {
 			list.push(_item);
 		});
 	});
 	return list
 }
 
-// module.exports.getWatchlists = () => {
-// 	return new Promise((result, error) => {
-// 		getdata(`https://api.tdameritrade.com/v1/accounts/${auth.accountId()}/watchlists`).then((data) => {
-// 			//console.log(moment(Date.now()).format(), `: Got  watchlists`)
-// 			//debugger
-// 			watchlists = data;
-// 			//console.log(watchlists)
-// 			transferWatchlists(data)
-// 			monitor.add(module.exports.allWatchlistKeys());
-// 			console.log(`${_.keys(monitor.equities()).length} equities, ${_.keys(monitor.futures()).length} futures, and ${_.keys(monitor.indexes()).length} indexes in ${data.length} Watchlists`);
-// 			result(data);
-// 		}).catch(error => {
-// 			console.log(error)
-// 			debugger
-// 		});
-// 	});
-// };
+module.exports.fetchWatchlists = () => {
+	return new Promise((result, error) => {
+		getdata(`https://api.tdameritrade.com/v1/accounts/${auth.accountId()}/watchlists`).then((data) => {
+			console.log(moment(Date.now()).format(), `: Fetched  watchlists`)
+			watchlists = data;
+			transferWatchlists(data).then( () => {
+				monitor.add(module.exports.allWatchlistKeys(data));
+				console.log(`${_.keys(monitor.equities()).length} equities, ${_.keys(monitor.futures()).length} futures, and ${_.keys(monitor.indexes()).length} indexes in ${data.length} Watchlists`);
+				result(data);
+
+			})
+		}).catch(() => {
+			console.log(error)
+			debugger
+		});
+	});
+};
 
 function transferWatchlists(lists){
-	lists.forEach(list => {
-		mysql.query(`insert into watchlists set name = '${list.name}', items = ' ${JSON.stringify(list.watchlistItems.map(i => {return i.instrument.symbol} ))}  '`)
-	});
+	promises = []
+	return new Promise((result, error) => {
+		lists.forEach(list => {
+			//mysql.query(`insert into watchlists set name = '${list.name}', items = '${JSON.stringify(list.watchlistItems.map(i => {return i.instrument.symbol} ))}'`)
+			promises.push(
+				mysql.query(`insert into watchlists (name,items) 	VALUES ('${list.name}', '${JSON.stringify(list.watchlistItems.map(i => {return i.instrument.symbol} ))}') 
+				ON DUPLICATE KEY UPDATE  name = '${list.name}', items = '${JSON.stringify(list.watchlistItems.map(i => {return i.instrument.symbol} ))}'`)
+				// .then(result(`Watchlist ${list.name} updated`))
+				// .catch(fail(`Problem updating watchlist ${list.name}`))
+				)
+			});
+		
+		p = Promise.all(promises)
+		.then(() => {
+			result(p)
+		})
+		.catch(() => {
+			error(`Problem updating watchlist ${list.name}`)
+		})
+}	)
 }
 
-module.exports.getWatchlists = () => {
+module.exports.loadWatchlists = () => {
 	return new Promise((result, fail) => {
 
 		mysql.query("select * from watchlists", function(results, fields, error) {
-			//debugger
+			watchlists = results
+
 			results = results.map(r =>{
 				return {id: r.id, name: r.name, items: JSON.parse(r.items)}
 			})
 
- 			monitor.add(module.exports.allWatchlistKeys(results));
+ 			
+		}).then(() => {
+			monitor.add(module.exports.allWatchlistKeys(results))
 
 			result(results)
+		})
+		.catch(() => {
 			fail(error)
-			// results.forEach(watchlist => {
-				
-				// });
 		})
 	})
 }

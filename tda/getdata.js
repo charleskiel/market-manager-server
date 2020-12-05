@@ -2,7 +2,9 @@ const auth = require('./auth')
 const request = require("request");
 const moment = require("moment");
 
+var lastFetchTime = 0;
 
+module.exports.getLastFetchTime = () => {lastFetchTime}
 
 module.exports.getWatchlists = () => {
 	return new Promise((result, error) => {
@@ -59,19 +61,26 @@ module.exports.getData = (endpoint) => {
             //console.log(response)
             if (response && response.statusCode === 200) {
                 if (body != "") {
-                
-                //console.log(moment(Date.now()).format() + body)
-                let j = JSON.parse(body)
-                //console.log(moment(Date.now()).format() + j);
-                result(j)
-                } else
-                {fail(response.statusMessage)}
+                    
+                    //console.log(moment(Date.now()).format() + body)
+                    let j = JSON.parse(body)
+                    //console.log(moment(Date.now()).format() + j);
+                    lastFetchTime = Date.now()
+                    result(j)
+                } 
+                else
+                {
+                    fail(response.statusMessage)
+                }
             }
             else if (response){
                 let j = JSON.parse(body)
                 switch (response.statusCode) {
                     case 401:
-                        if (j.error = "The access token being passed has expired or is invalid.") {debugger}
+                        if (j.error = "The access token being passed has expired or is invalid.") {
+                            auth.refresh()
+                            //debugger
+                        }
                         else {
 
                             console.log(moment(Date.now()).format() + ': 401 hint: refresh token');

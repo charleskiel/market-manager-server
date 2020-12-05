@@ -1,6 +1,7 @@
 
 var moment = require('moment');
 const tda =  require('./tda/tda.js')
+//const tda =  require('./datacollector.js')
 //var alpaca = require('./alpaca/alpaca.js')
 //var coinbase = require('./coinbase/coinbase')
 //var reddit = require('./reddit/reddit')
@@ -20,23 +21,6 @@ app.use(function(req, res, next) {
 tda.load()
 //alpaca.collectData()
 var _ = require('lodash');
-
-// var j = JSON.parse(fs.readFileSync("./data/ROKU_chain.json", (err) => { if (err) console.error(err); }))
-// debugger
-// [j.callExpDateMap, j.putExpDateMap].map(call => _.values(call).map(_week => {
-//      //console.log((_week))
-//      _.values(_week).map(_strike => {
-//           _strike.map(_price => {
-//                //console.log(price.bid)
-
-//                //console.log(`${_week},${(_strike)},${_price.description}`)
-//                console.log(`${_price.description}`)
-//           })
-//      })
-// })
-// )
-
-
 
 
 //GET home route
