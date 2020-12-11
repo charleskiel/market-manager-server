@@ -27,7 +27,7 @@ module.exports.refresh = () => {
 				.then((result) => ok(result))
 				.catch((result) => fail(result));
 		});
-		refreshAccessToken()
+		//refreshAccessToken()
 		//console.log(data);
 	});
 };
@@ -143,9 +143,9 @@ function refreshAccessToken() {
 				},
 			};
 
-			console.log(moment(Date.now()).format(), options.form);
+			//console.log(moment(Date.now()).format(), options.form);
 			request(options, function (error, response, body) {
-				console.log(error, response,body);
+				if (error) console.log(error, response,body);
 				let data = JSON.parse(body);
 				if (data.error == "Invalid ApiKey") {
 					debugger;
@@ -170,7 +170,8 @@ function refreshAccessToken() {
 			});
 		});
 	} catch (error) {
-		console.log(error)
+		fail(error);
+		//console.log(error)
 	}
 	
 }

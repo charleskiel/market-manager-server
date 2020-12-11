@@ -4,16 +4,87 @@ const moment = require("moment");
 const mysql = require("../mysql.js");
 const tdaSocket = require("./tdaSocket");
 
-module.exports.actives = {
-	ACTIVES_NASDAQ: {},
-	ACTIVES_NYSE: {},
-	ACTIVES_OPTIONS: {},
-	ACTIVES_OTCBB: {},
-};
 products = []
+
+module.exports.actives = {
+	add: function (msg){
+		//'4896;0;1:21:00;01:21:36;2;0:10:5341501:TSLA_121120C650:TSLA Dec 11 2020 650 Call:30439:0.57:TSLA_121120C700:TSLA Dec 11 2020 700 Call:24301:0.45:AAPL_121120C125:AAPL Dec 11 2020 125 Call:18369:0.34:TSLA_121120C630:TSLA Dec 11 2020 630 Call:16585:0.31:PLTR_121120C30:PLTR Dec 11 2020 30 Call:15938:0.3:TSLA_121120C640:TSLA Dec 11 2020 640 Call:15661:0.29:SPY_120720C369:SPY Dec 7 2020 369 Call:11761:0.22:SPY_120720P368:SPY Dec 7 2020 368 Put:11515:0.22:BA_121120C250:BA Dec 11 2020 250 Call:11137:0.…P368:SPY Dec 7 2020 368 Put:174854:0.55:SPY_120720C369:SPY Dec 7 2020 369 Call:146119:0.46:AAPL_121120C125:AAPL Dec 11 2020 125 Call:129594:0.4:SPY_120720P369:SPY Dec 7 2020 369 Put:116933:0.36:TSLA_121120C650:TSLA Dec 11 2020 650 Call:90102:0.28:SPY_120720C370:SPY Dec 7 2020 370 Call:87910:0.27:PLTR_121120C30:PLTR Dec 11 2020 30 Call:82489:0.26:TSLA_121120C700:TSLA Dec 11 2020 700 Call:70707:0.22:VIX_121620P19:VIX Dec 16 2020 19 Put:61588:0.19:SPY_120920C370:SPY Dec 9 2020 370 Call:57718:0.18'
+		let items = []
+		switch (msg.service) {
+				
+			case "ACTIVES_NASDAQ": case "ACTIVES_NYSE": case "ACTIVES_OTCBB":
+				var split = msg.content[0]["1"].split(";")
+				if (split.length > 1) {
+				var o = {
+					"timestamp": msg.timestamp,
+					"ID:": split[0],
+					"sampleDuration": split[1],
+					"Start Time": split[2],
+					"Display Time": split[3],
+					"GroupNumber": split[4],
+					"groups": []
+				}
+				split = (split[6].split(":"))
+				o.totalVolume = (split[0])
+				o.groupcount = split[1]
+				for (let i = 3; i < split.length; i += 3) {
+					if (!products[split[i]]) {items.push(split[i]);}
+					o.groups.push({ symbol: split[i], volume: split[i + 1], priceChange: split[i + 2] })
+				}
+				
+				module.exports.actives[msg.service][o.sampleDuration] = o;
+
+				}
+				break;
+			case "ACTIVES_OPTIONS":
+				
+				//console.log(moment(Date.now()).format() + ": OPTIONS Activies")
+				//console.log(m)
+				//debugger
+				msg.content.map(act => {
+
+				var split = act["1"].split(";")
+				if (split[1]) {
+					var o = {
+						"timestamp": msg.timestamp,
+						"ID:": split[0],
+						"sampleDuration": split[1],
+						"Start Time": split[2],
+						"Display Time": split[3],
+						"GroupNumber": split[4],
+						"groups": []
+					}
+
+					split = (split[6].split(":"))
+					o.totalVolume = (split[3])
+					o.groupcount = split[1]
+					//o.sampleDuration
+					for (let i = 3; i < split.length; i += 4) {
+						if (!products[split[i]]) {items.push(split[i]);}
+						o.groups.push({ symbol: split[i], name: split[i + 1], volume: split[i + 2], percentChange: split[i + 3] })
+					}
+
+					//console.log(moment(Date.now()).format() + `: Default Message: ` + msg.service, m);
+					//console.log(moment(Date.now()).format() + m);
+					module.exports.actives.ACTIVES_OPTIONS[o.sampleDuration] = o;
+				}
+				})
+		}
+
+		if (items.length > 0) {
+			module.exports.add(items)
+			console.log(msg.service)
+			console.log(module.exports.actives[msg.service])
+		}
+	},
+	"ACTIVES_NASDAQ": {},
+	"ACTIVES_NYSE": {},
+	"ACTIVES_OTCBB": {},
+	"ACTIVES_OPTIONS": {}
+};
 module.exports.defaultFutures = [
 	"/ES", // S&P 500
-	"/ES", // S&P MidCap 400
+	"/EMD", // S&P MidCap 400
 	"/NQ", // Nasdaq 100
 	"/RTY", // Russell 2000
 	
@@ -55,25 +126,17 @@ module.exports.defaultFutures = [
 
 ];
 
-module.exports.defaultStocks = ["QQQ","SPY","GLD","AMD","HD","NVDA","ACB","WMT","BJ","TGT","MSFT","NVDA","ROKU","NFLX","ADBE","SHOP","TSLA","GOOG","AMZN","JNJ","BYND","SMH","MU","LOW","DIS","FDX","CAT","MMM","UPS","YUM","DLTR","BANK","BBY","UBS"]
 module.exports.list = () => {return products}
 
 module.exports.equities = () => {
-
-	let k = _.keys(products);
-	let kk = _.keys(products);
-	let result = _.keys(products).filter(key => {
+	return _.keys(products).filter(key => {
 		return (!key.includes("$") && !key.includes("/") && key.length < 6)
-
 	})
-	return result
-},
-module.exports.indexes = () => { return _.keys(products).filter(key => key.includes("$")) },
-module.exports.futures = () => { return _.keys(products).filter(key => key.includes("/")) },
-module.exports.options = () => { 
-	let e = _.keys(products).filter(key => key.includes("_") )
-	return _.keys(products).filter(key => key.includes("_") )
-	}
+}
+
+module.exports.indexes = () => {return _.keys(products).filter(key => key.includes("$"))},
+module.exports.futures = () => {return _.keys(products).filter(key => key.includes("/"))},
+module.exports.options = () => {return _.keys(products).filter(key => key.includes("_"))}
 	
 
 module.exports.exists = (key) => {(products[key]) ? true : false}
@@ -86,10 +149,6 @@ module.exports.add = (items) => {
 
 	
 	items.map(key => {
-		//console.log(key)
-		//console.log(key.instrument)
-
-		
 		if (key.instrument) {
 			symbol = key.instrument.symbol
 		} else if (key != "") {
@@ -97,8 +156,6 @@ module.exports.add = (items) => {
 		}
 
 		if (!products[symbol]) {
-
-			
 			let type = isType(symbol)
 			products[symbol] = { key: symbol, assetType: type, spark: [] }
 
@@ -122,15 +179,11 @@ module.exports.add = (items) => {
 
 	//if (optionsChange || indexesChange || futuresChange) { console.log(optionsChange, indexesChange, futuresChange); }
 	if (equitiesChange) { 
-		let e = [...module.exports.defaultStocks, ...module.exports.equities(), ...module.exports.indexes()]
-		
-		tdaSocket.sendServiceMsg("equities", [...module.exports.defaultStocks, ...module.exports.equities(), ...module.exports.indexes()]); }
+		tdaSocket.sendServiceMsg("equities", [...module.exports.equities(), ...module.exports.indexes()]); }
 	if (futuresChange) { 
-		e = module.exports.futures()
-		tdaSocket.sendServiceMsg("futures", e) }
+		tdaSocket.sendServiceMsg("futures", module.exports.futures()) }
 	if (optionsChange) { 
-		e = module.exports.options()
-		tdaSocket.sendServiceMsg("options", e) }
+		tdaSocket.sendServiceMsg("options", module.exports.options() ) }
 }
 
 
@@ -164,16 +217,16 @@ module.exports.addChartData = (m) => {
 			break;
 	}
 	//console.log(products[m.key])
-	if (!products[m.key]){
-		//debugger
-		products[m.key] = {...m, ...{spark: []}}
-	}else if ( !products[m.key].spark ) { products[m.key].spark = []}
+	// if (!products[m.key]){
+	// 	//debugger
+	// 	products[m.key] = {...m, ...{spark: []}}
+	// }else if ( !products[m.key].spark ) { products[m.key].spark = []}
 
-	products[m.key].spark.push(m);
-	while (products[m.key].spark.length > 0 && products[m.key].spark[0][7] < (Date.now() - (24*60*60*1000))){
-		//console.log(`popping old chart data ${moment( products[m.key].spark[0][7]).startOf('day').fromNow()}`  )
-		products[m.key].spark.shift()
-	}
+	// products[m.key].spark.push(m);
+	// while (products[m.key].spark.length > 0 && products[m.key].spark[0][7] < (Date.now() - (24*60*60*1000))){
+	// 	//console.log(`popping old chart data ${moment( products[m.key].spark[0][7]).startOf('day').fromNow()}`  )
+	// 	products[m.key].spark.shift()
+	// }
 }
 
 function isType(key) {

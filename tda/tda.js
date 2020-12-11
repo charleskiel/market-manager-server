@@ -109,14 +109,9 @@ function status(){
             account.tick(data)
             
             results = {
-                service: "status",
+                service: "STATUS",
                 timestamp: Date.now(),
-                content: [{
-                    systemtime: Date.now(),
-                    databaseWriteCount: mysql.writecount,
-                    account: data,
-                }],
-                actives : monitor.actives
+                content: data,
             }
             dbWrite(results)
             watchPositions()
@@ -151,23 +146,42 @@ module.exports.state = () => {
 
 
 
-tdaSocket.event.on("*", function (msg) {
+var listener = tdaSocket.event.on("*", function (msg) {
     //console.log(msg)
     relayToClients(msg)
     
     if (msg.content) {
-        if (msg.response) {
-            msg.response.forEach((m) => {
-                switch (m.service) {
-                    case "CHART_EQUITY":
-                    case "ACTIVES_NASDAQ":
-                    case "ACTIVES_NASDAQ":
-                    default:
-                    //console.log(moment(Date.now()).format() + `: Default Message ${msg}`)
-                    console.log(m)
+        if (msg.content.code == 17) {
+			//console.log(`\x1b[35m ${msg.service} [${msg.code}] :: ${msg.content.msg}`);
+        } else {
+            msg.service = msg.service.toUpperCase()
+            switch (msg.service) {
+                case "CHART_EQUITY":
+                case "CHART_FUTURES":
+                case "NEWS_HEADLINE":
+                    dbWrite(msg);
+                    //debugger;
                     break;
-                }
-            });
+                case "ACTIVES_NASDAQ":
+                case "ACTIVES_NYSE":
+                case "ACTIVES_OTCBB":
+                case "ACTIVES_OPTIONS":
+                    dbWrite(msg);
+                    break;
+                case "QUOTE":
+                case "LEVELONE_FUTURES":
+                case "TIMESALE_FUTURES":
+                case "TIMESALE_EQUITY":
+                    break;
+                case "SERVICE":
+                    console.log(msg.service + ": " + msg.content);
+                    console.log(moment(Date.now()).format() + `: Default Message`, msg);
+                    break;
+                default:
+                    console.log(msg.service + ": " + msg.content);
+                    console.log(moment(Date.now()).format() + `: Default Message`, msg);
+                    break;
+            }
         }
     }
 })
@@ -179,69 +193,81 @@ function sendMsg(c){
 
 function dbWrite(data){
     let color = ""
-    data.content.map(_content =>{
-        let str = ""
-        //console.log(moment(data.timestamp).format("h:mm:ss a") + `: INSERT INTO data (service,timestamp,content) VALUES ( '${data.service}', ${data.timestamp}, '${JSON.stringify(data.content)}');`);
-        if (data.service === "ACTIVES_NYSE") {
-            str = "INSERT INTO `" + data.service + "` (timestamp,content) VALUES (" + data.timestamp + ",'"+ mysql_real_escape_string(JSON.stringify(_content)) + "');"
-            color = "\x1b[33m"
-        } //Yellow
-        else if (data.service === "ACTIVES_NASDAQ") {
-            str = "INSERT INTO `" + data.service + "` (timestamp,content) VALUES (" + data.timestamp + ",'"+ mysql_real_escape_string(JSON.stringify(_content)) + "');"
-            color = "\x1b[34m"
-        } //Blue
-        else if (data.service === "ACTIVES_OPTIONS") {
-            str = "INSERT INTO `" + data.service + "` (timestamp,content) VALUES (" + data.timestamp + ",'"+ mysql_real_escape_string(JSON.stringify(_content)) + "');"
-            color = "\x1b[34m"
-        } //Blue
-        else if (data.service === "ACTIVES_OTCBB") {
-            str = "INSERT INTO `" + data.service + "` (timestamp,content) VALUES (" + data.timestamp + ",'"+ mysql_real_escape_string(JSON.stringify(_content)) + "');"
-            color = "\x1b[36m"
-        } //Teal
-        else if (data.service === "QUOTE") {
-            str = "INSERT INTO `" + data.service + "` (`key`,timestamp,content) VALUES ('" + _content.key + "'," + data.timestamp + ",'"+ mysql_real_escape_string(JSON.stringify(_content)) + "');"
-            color = "\x1b[35m"
-        } //Magenta
-        else if (data.service === "CHART_EQUITY") {
-            str = "INSERT INTO `" + data.service + "` (`key`,timestamp,content) VALUES ('" + _content.key + "'," + data.timestamp + ",'"+ mysql_real_escape_string(JSON.stringify(_content)) + "');"
-            color = "\x1b[31m"
-        } //Magenta
-        else if (data.service === "CHART_FUTURES") {
-            str = "INSERT INTO `" + data.service + "` (`key`,timestamp,content) VALUES ('" + _content.key + "'," + data.timestamp + ",'"+ mysql_real_escape_string(JSON.stringify(_content)) + "');"
-            color = "\x1b[35m"
-        } //Magenta
-        else if (data.service === "LEVELONE_FUTURES") {
-            str = "INSERT INTO `" + data.service + "` (`key`,timestamp,content) VALUES ('" + _content.key + "'," + data.timestamp + ",'"+ mysql_real_escape_string(JSON.stringify(_content)) + "');"
-            color = "\x1b[32m"
-        } //Green
-        else if (data.service === "TIMESALE_FUTURES") {
-            str = "INSERT INTO `" + data.service + "` (`key`,timestamp,content) VALUES ('" + _content.key + "'," + data.timestamp + ",'"+ mysql_real_escape_string(JSON.stringify(_content)) + "');"
-            color = "\x1b[92m"
-        } //Bright Green
-        else if (data.service === "NEWS_HEADLINE") {
-            str = "INSERT INTO `" + data.service + "` (`key`,timestamp,content) VALUES ('" + _content.key + "'," + data.timestamp + ",'"+ mysql_real_escape_string(JSON.stringify(_content)) + "');"
+    if (data.content) {
+        let timestamp = data.timestamp;
+            
+        //console.log(data.content)
+        data.content.map(_content => {
+            let str = "";
+            let timestamp = data.timestamp;
+            switch (data.service.toUpperCase()) {
+                case "ACTIVES_NYSE":
+                case "ACTIVES_NASDAQ":
+                case "ACTIVES_OPTIONS":
+                case "ACTIVES_OTCBB":
+                    //Teal
+                    // color = "\x1b[36m"
+                    // if (data.service == "ACTIVES_OPTIONS") debugger;
+                    // str = "INSERT INTO `" + data.service + "` (timestamp,content) VALUES (" + timestamp + ",'" + mysql_real_escape_string(JSON.stringify(_content)) + "') ON DUPLICATE KEY UPDATE content='" + mysql_real_escape_string(JSON.stringify(_content)) + "';"
+                    monitor.actives.add(data)
+                    break;
+                case "QUOTE":
+                case "LEVELONE_FUTURES":
+                    //Magenta
+                    color = "\x1b[35m"
+                    //str = "INSERT INTO `" + data.service + "` (`key`,timestamp,content) VALUES ('" + _content.key + "'," + timestamp + ",'"+ mysql_real_escape_string(JSON.stringify(_content)) + "') ON DUPLICATE KEY UPDATE content='"+ mysql_real_escape_string(JSON.stringify(_content)) + "';"
+                    break;
+                case "CHART_EQUITY":
+                case "CHART_FUTURES":
+                    color = "\x1b[31m";
+                    if (data.service.toUpperCase() == "CHART_FUTURES") {
+                        str = `INSERT INTO ${data.service} (\`key\`,\`timestamp\`,h,l,o,c,v) VALUES ('${_content.key}',${_content["1"]},${_content["3"]},${_content["4"]},${_content["2"]},${_content["5"]},${_content["6"]}) ON DUPLICATE KEY UPDATE h=${_content["3"]},l=${_content["4"]},o=${_content["2"]},c=${_content["5"]},v=${_content["6"]};`;
+                        //debugger;
+                    } else if (data.service.toUpperCase() == "CHART_EQUITY") {
+                        //debugger;
+                        if (_content["5"] < 0) {_content["5"] = 0}
+                        str = `INSERT INTO ${data.service} (\`key\`,\`timestamp\`,h,l,o,c,v) VALUES ('${_content.key}',${_content["7"]},${_content["2"]},${_content["3"]},${_content["1"]},${_content["4"]},${_content["5"]}) ON DUPLICATE KEY UPDATE h=${_content["2"]},l=${_content["3"]},o=${_content["1"]},c=${_content["4"]},v=${_content["5"]};`;
+                    }
+                    break;
+                case "TIMESALE_OPTIONS":
+                    console.log(moment(timestamp).format("LTS") + color + ` [${data.service.padEnd(16, " ")}] ::  \x1b[37m \x1b[40m`, data);
+                case "TIMESALE_FUTURES":
+                    //Bright Green
+                    color = "\x1b[92m"
+                    //str = "INSERT INTO `" + data.service + "` (`key`,timestamp,content) VALUES ('" + _content.key + "'," + timestamp + ",'"+ mysql_real_escape_string(JSON.stringify(_content)) + "') ON DUPLICATE KEY UPDATE content='"+ mysql_real_escape_string(JSON.stringify(_content)) + "';"
+                    break;
+                case "NEWS_HEADLINE":
+                    console.log(moment(timestamp).format("LTS") + color + ` [${data.service.padEnd(16, " ")}] ::  \x1b[37m \x1b[40m`, data);
+                    break;
+                case "STATUS":
+                    //Blue
+                    color = "\x1b[5m"
+                    //console.log(moment(timestamp).format("LTS") + color + ` [${data.service.padEnd(16, " ")}] :: ${JSON.stringify(data.content)}\x1b[37m \x1b[40m`);
+                    str = "INSERT INTO `" + data.service + "` (timestamp,content) VALUES (" + timestamp + ",'"+ mysql_real_escape_string(JSON.stringify(_content)) + "') ON DUPLICATE KEY UPDATE content='"+ mysql_real_escape_string(JSON.stringify(_content)) + "';"
+                    break;
+                default:
+                    color = "\x1b[5m"
+                    //console.log(moment(timestamp).format("LTS") + color + ` [${data.service.padEnd(16, " ")}] ::  \x1b[37m \x1b[40m` , JSON.stringify(data.content) );
+                    //str = "INSERT INTO `" + data.service.toUpperCase() + "` (timestamp,content) VALUES (" + timestamp + ",'"+ mysql_real_escape_string(JSON.stringify(_content)) + "') ON DUPLICATE KEY UPDATE content='"+ mysql_real_escape_string(JSON.stringify(_content)) + "';"
+                    //Blue
+                    
+                    break;
+            }
 
-            } //Bright Green
-        else if (data.service === "status")
-        {
-            color = "\x1b[93m";
-        } //Blue
-        else
-        {
-            //console.log(moment(data.timestamp).format("LTS") + color + ` [${data.service.padEnd(16, " ")}] :: ${JSON.stringify(data.content)}\x1b[37m \x1b[40m`);
-            str = "INSERT INTO `" + data.service.toUpperCase() + "` (timestamp,content) VALUES (" + data.timestamp + ",'"+ mysql_real_escape_string(JSON.stringify(_content)) + "');"
-            color = "\x1b[5m"
-        }
 
+            //console.log("\x1b[40m")
+            //console.log("\x1b[37m")
 
-        //console.log("\x1b[40m")
-        //console.log("\x1b[37m")
-
-        //let str = `INSERT INTO data (service,timestamp,content) VALUES ( '${data.service}', ${data.timestamp}, '${mysql_real_escape_string(JSON.stringify(_content))}');`
-        //console.log(str)
-        if (str) mysql.query(str)
-    })
-    //console.log(moment(data.timestamp).format("LTS") + color + ` [${data.service.padEnd(16, " ")}] :: ${JSON.stringify(data.content)}\x1b[37m \x1b[40m`);
+            if (str != "") {
+                //console.log(str)
+                mysql.query(str)
+                //mysql.query(str).then(result => {console.log(result)})
+            }
+            
+        })
+    } else {
+        console.log(moment(timestamp).format("LTS") + color + ` [${data.service.padEnd(12, " ")}]  ::  ` , JSON.stringify(data.content) + `\x1b[37m \x1b[40m`);
+    }
 
 }
 
@@ -306,7 +332,7 @@ console.log(socket)
         console.log(`Received messages from ${socket._socket.remoteAddress}`, msg)
 
         msg = JSON.parse(msg)
-        msg.requests.forEach((m) => { 
+        msg.requests.map((m) => { 
             console.log(`Received msg from ${socket._socket.remoteAddress}`,msg)
             switch (m.service) {
                 case "ADMIN":
@@ -371,8 +397,8 @@ console.log(socket)
 
 
 function sendToClient(socket,message) {
-    console.log(clientSockets[socket])
-    console.log(`tosendmessage`, JSON.stringify(message))
+    //console.log(clientSockets[socket])
+    //console.log(`tosendmessage`, JSON.stringify(message))
     
 	
     if (socket.readyState === 1 ){

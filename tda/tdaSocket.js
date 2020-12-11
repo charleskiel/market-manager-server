@@ -1,7 +1,6 @@
 const WebSocket = require("websocket").w3cwebsocket;
 var auth = require("./auth")
 var monitor = require("./monitor")
-var watchlists = require("./watchlists")
 var ws = WebSocket
 const moment = require("moment");
 
@@ -13,7 +12,6 @@ module.exports.event = new EventEmitter2({
 	delimiter: ".",
 	newListener: false,
 	removeListener: false,
-	//maxListeners: 10,
 	verboseMemoryLeak: false,
 	ignoreErrors: false,
 });
@@ -83,12 +81,13 @@ module.exports.load = () => {
 			let packet = JSON.parse(message.data)
 			//console.log(packet) 
 			packetcount()
+			let datacount = 0
 			
 
 			if (packet.notify) {
 				packet.notify.map(p => {
 					module.exports.event.emit("notify", p);
-					console.log("\x1b[36m%s\x1b[0m", moment.unix(p.heartbeat/1000).format("LTS") + ` [${"Heartbeat".padEnd(16, " ")}] :: heartbeat: ${moment.unix(packet.notify[0].heartbeat/1000).format("LLLL")}`);
+					//console.log("\x1b[36m%s\x1b[0m", moment.unix(p.heartbeat/1000).format("LTS") + ` [${"Heartbeat".padEnd(16, " ")}] :: heartbeat: ${moment.unix(packet.notify[0].heartbeat/1000).format("LLLL")}`);
 				})
 				//console.log("\x1b[36m%s\x1b[0m", moment.unix(packet.notify[0].heartbeat).format("LTS") + ` [${"Heartbeat".padEnd(16, " ")}] :: heartbeat: ${moment.unix(packet.notify[0].heartbeat).format("LLLL")}`);
 				//console.log(moment(Date.now()).format("LTS") + `: heartbeat: ${moment.unix(packet.notify[0].heartbeat).format("LLLL")}`)
@@ -96,15 +95,24 @@ module.exports.load = () => {
 			} else {
 				
 				if (packet.data) {
-					packet.data.forEach((m) => {
-						msgcount()
-						console.log(packet)
+					packet.data.map((m) => {
+						//console.log("========================================================================================================")
+						datacount = m.content.length
+						m.content.map(e => {
+							msgcount()
+							if (JSON.stringify(m.service) == "NEWS_HEADLINE") {
+								console.log(`\x1b[41m ${m.service} [${e.key}] : ${JSON.stringify(e)} \x1b[0m`);
+							} else {
+								//console.log(`${m.service} [${e.key}] : ${JSON.stringify(e)}`);
+							}
+
+						})
 						module.exports.event.emit(m.service, m)
 					})
 				}
 
 				if (packet.response) {
-					packet.response.forEach((m) => {
+					packet.response.map((m) => {
 						
 						switch (m.service) {
 							case "ADMIN":
@@ -112,9 +120,11 @@ module.exports.load = () => {
 									socketStatus("connected")
 									console.log(moment(Date.now()).format() + `: Login Sucuess! [code: ${m.content.code} packet:${m.content.packet}`);
 									console.log(m);
+									console.log("\007");
 									initStream()
 								} else {
 									socketStatus(`FAILED [code: ${m.content.code} packet:${m.content.packet}`);
+									console.log("\007");
 								}
 								break;
 							
@@ -125,7 +135,8 @@ module.exports.load = () => {
 									console.log(`[${moment(Date.now()).format()}] ${m.service} \x1b[92m OK `);
 								} else {
 									console.log(`\x1b[44m [${moment(Date.now()).format()}] \x1b[0m  \x1b[44m [${m.requestid}] \x1b[0m  ${m.service}  \x1b[41m Fail  \x1b[0m ${m.content.msg}`,m)
-									
+									console.log("\007");
+
 									// for (let index = 0; index < sendHistory.length; index++) {
 									// 	console.log(sendHistory[index])
 										
@@ -138,6 +149,8 @@ module.exports.load = () => {
 					});
 				}
 			}
+
+			//console.log(`MSG this packet: ${datacount}  Msg Count : ${_msgcount}  Packet Count : ${_packetcount}`);
 			
 		} catch (error) {
 			console.log("\x1b[41m", error);
@@ -196,27 +209,14 @@ function initStream() {
 	console.log(monitor.defaultStocks);
 	//module.exports.sendServiceMsg("equities", [...monitor.defaultStocks, ...monitor.equities(), ...monitor.indexes()]);
 	monitor.add(monitor.defaultFutures);
-
-	// sendMsg({
-	//     requests: [
-	//         {
-	//             service: "ADMIN",
-	//             requestid: requestid(),
-	//             command: "SUBS",
-	//             account: auth.accountId(),
-	//             source: principals      .streamerInfo.appId,
-	//             parameters: {"qoslevel": "5"},
-	//         },
-	//     ],
-	// });
 }
 
 
 
 
 module.exports.sendServiceMsg = (_type, _keys) => {
-	console.log(_type);
-	console.log([..._keys].toString());
+	//console.log(_type);
+	console.log(_type,[..._keys].toString());
 	switch (_type) {
 		case "equities":
 		case "indexes":
@@ -317,16 +317,16 @@ module.exports.sendServiceMsg = (_type, _keys) => {
 							keys: [..._keys].toString(),
 							fields: "0,1,2,3,4,8,9,12,13,14,16,18,19,20,23,24,25,26,27,28,31",
 						},
-					},{
-						service: "FUTURES_BOOK",
-						requestid: requestid(),
-						command: "SUBS",
-						account: auth.accountId(),
-						source: auth.appId(),
-						parameters: {
-							keys: [..._keys].toString(),
-							fields: "0,1,2,3,4,8,9,12,13,14,16,18,19,20,23,24,25,26,27,28,31",
-						},
+					// },{
+					// 	service: "FUTURES_BOOK",
+					// 	requestid: requestid(),
+					// 	command: "SUBS",
+					// 	account: auth.accountId(),
+					// 	source: auth.appId(),
+					// 	parameters: {
+					// 		keys: [..._keys].toString(),
+					// 		fields: "0,1,2,3,4,8,9,12,13,14,16,18,19,20,23,24,25,26,27,28,31",
+					// 	},
 					},{
 						service: "TIMESALE_FUTURES",
 						requestid: requestid(),
@@ -343,7 +343,21 @@ module.exports.sendServiceMsg = (_type, _keys) => {
 
 			break;
 		case "options":
-
+			sendMsg({
+				requests: [
+					{
+						service: "TIMESALE_OPTIONS",
+						requestid: requestid(),
+						command: "SUBS",
+						account: auth.accountId(),
+						source: auth.appId(),
+						parameters: {
+							keys: [..._keys].toString(),
+							fields: "0,1,2,3",
+						},
+					},
+				],
+			});
 			break;
 		case "ACTIVES_OTCBB":
 		case "ACTIVES_NYSE":
