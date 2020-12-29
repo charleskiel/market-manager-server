@@ -1,9 +1,12 @@
-const auth = require('../monitor')
+const fs = require("fs");
+//const auth = require('../monitor')
 const request = require("request");
 const moment = require("moment");
+let principals = JSON.parse(fs.readFileSync("./auth/tradier.json"));
+
 const endpoint = 'https://api.tradier.com/v1/'
 const headers = {
-	'Authorization': 'Bearer ',
+	'Authorization': 'Bearer ' + principals.accessToken,
 	'Accept': 'application/json'
    }
 
@@ -23,7 +26,7 @@ module.exports.getHistoricalQuotes = (symbol, interval, start, end) => {
 	}
 
 	return new Promise((result, error) => {
-		getdata('markets/history',qs).then((data) => {
+		getData('markets/history',qs).then((data) => {
 			console.log(result(data));
 		}).catch(error => {
 			console.log(error)
@@ -41,7 +44,7 @@ module.exports.getOptionChains = (symbol, expiration) => {
 	}
 
 	return new Promise((result, error) => {
-		getdata('markets/options/chains',qs).then((data) => {
+		getData('markets/options/chains',qs).then((data) => {
 			console.log(result(data));
 		}).catch(error => {
 			console.log(error)
@@ -58,7 +61,7 @@ module.exports.getOptionStrikes = (symbol, expiration) => {
 	}
 
 	return new Promise((result, error) => {
-		getdata('markets/options/strikes',qs).then((data) => {
+		getData('markets/options/strikes',qs).then((data) => {
 			console.log(result(data));
 		}).catch(error => {
 			console.log(error)
@@ -75,7 +78,7 @@ module.exports.getOptionExpirations = (symbol) => {
 	}
 
 	return new Promise((result, error) => {
-		getdata('markets/options/strikes',qs).then((data) => {
+		getData('markets/options/strikes',qs).then((data) => {
 			console.log(result(data));
 		}).catch(error => {
 			console.log(error)
@@ -94,7 +97,48 @@ module.exports.getHistoricalQuotes = (symbol, interval, start, end) => {
 	  }
 
 	return new Promise((result, error) => {
-		getdata('markets/history',qs).then((data) => {
+		getData('markets/history',qs).then((data) => {
+			console.log(result(data));
+		}).catch(error => {
+			console.log(error)
+			debugger
+		});
+	});
+};
+
+
+module.exports.getTimeSales = (symbol, interval, start, end) => {
+	let qs = {
+		symbol: symbol,
+		interval: interval,
+		start: moment(start).format("YYYY-MM-DD"),
+		end: moment(end).format("YYYY-MM-DD"),
+		session_filter: "all",
+	};
+	//console.log(qs)
+	return new Promise((result, error) => {
+		getData('markets/timesales',qs).then((data) => {
+			//console.log(data.series.data);
+			if (data.series.data) {result(data.series.data)} else {result([])}
+			//debugger
+		}).catch(e => {
+			console.log(e)
+			//debugger
+		});
+	});
+};
+
+
+module.exports.getHistoricalQuotes = (symbol, interval, start, end) => {
+	let qs = {
+		'symbol': symbol,
+		'interval': interval,
+		'start': start,
+		'end': end
+	  }
+
+	return new Promise((result, error) => {
+		getData('markets/history',qs).then((data) => {
 			console.log(result(data));
 		}).catch(error => {
 			console.log(error)
@@ -113,7 +157,7 @@ module.exports.getHistoricalQuotes = (symbol, interval, start, end) => {
 	  }
 
 	return new Promise((result, error) => {
-		getdata('markets/history',qs).then((data) => {
+		getData('markets/history',qs).then((data) => {
 			console.log(result(data));
 		}).catch(error => {
 			console.log(error)
@@ -132,45 +176,7 @@ module.exports.getHistoricalQuotes = (symbol, interval, start, end) => {
 	  }
 
 	return new Promise((result, error) => {
-		getdata('markets/history',qs).then((data) => {
-			console.log(result(data));
-		}).catch(error => {
-			console.log(error)
-			debugger
-		});
-	});
-};
-
-
-module.exports.getHistoricalQuotes = (symbol, interval, start, end) => {
-	let qs = {
-		'symbol': symbol,
-		'interval': interval,
-		'start': start,
-		'end': end
-	  }
-
-	return new Promise((result, error) => {
-		getdata('markets/history',qs).then((data) => {
-			console.log(result(data));
-		}).catch(error => {
-			console.log(error)
-			debugger
-		});
-	});
-};
-
-
-module.exports.getHistoricalQuotes = (symbol, interval, start, end) => {
-	let qs = {
-		'symbol': symbol,
-		'interval': interval,
-		'start': start,
-		'end': end
-	  }
-
-	return new Promise((result, error) => {
-		getdata('markets/history',qs).then((data) => {
+		getData('markets/history',qs).then((data) => {
 			console.log(result(data));
 		}).catch(error => {
 			console.log(error)
@@ -183,7 +189,7 @@ module.exports.getHistoricalQuotes = (symbol, interval, start, end) => {
 
 
 
-module.exports.getData = (url,query) => {
+getData = (url,query) => {
 	//console.log(moment(Date.now()).format(), endpoint)
     	return new Promise((result, fail) => {
 		const options = {
@@ -194,26 +200,28 @@ module.exports.getData = (url,query) => {
 		};
 
 		request(options, function (error, response, body) {
-			//console.log(response)
 			if (response && response.statusCode === 200) {
-				if (body != "") {
+				if (body.series != null) {
 					//console.log(moment(Date.now()).format() + body)
 					let j = JSON.parse(body)
-					console.log(moment(Date.now()).format() + j);
+					console.log(moment(Date.now()).format(),j);
 					lastFetchTime = Date.now()
 					result(j)
 				} 
 				else
 				{
-					fail(response)
+					console.log(body,error, url, query);
+					fail({ body,error, url, query })
 				}
 			}
-			else if (response){
-				console.log(moment(Date.now()).format() + response);
+			else if (response) {
+				console.log(body,error, url, query);
+				fail({body,error,url, query})
 			} 
 			else {
-				fail(error)
+				console.log(body,error, url, query);
+				fail({body,error,url, query})
 			}
 		})
-   	 });
+   	});
 }

@@ -49,7 +49,7 @@ function validateAccessToken() {
 			if (Date.now() >= access_token.created_on + access_token.expires_in * 1000) {
 				console.log(moment(Date.now()).format() + ": Token appears to be expired... Refreshing");
 				refreshAccessToken()
-					.then(ok("Token Refreshed"))
+					.then(response => ok(response ))
 					.catch((error) => {
 						console.log(error);
 						//debugger;
@@ -74,15 +74,16 @@ function validateprincipals() {
 			const refreshTokenInfo = JSON.parse(fs.readFileSync("./auth/refresh_token.json"));
 			const user_principals = JSON.parse(fs.readFileSync("./auth/user_principals.json"));
 
-			console.log(
-				moment(Date.now()).format() + `: Principals updated ${moment(user_principals.streamerInfo.tokenTimestamp).fromNow()}, expires ${moment(user_principals.tokenExpirationTime).fromNow()}`
-			);
 			//console.log(moment(Date.now()).format() + moment(user_principals.streamerInfo.tokenTimestamp).format());
 			//console.log(moment(Date.now()).format() + moment(Date.now()).diff(user_principals.streamerInfo.tokenTimestamp, "seconds"));
 
-			if (moment(user_principals.streamerInfo.tokenTimestamp).diff(Date.now()) <= 0) {
-				console.log(moment(Date.now()).format() + ": =================================================");
-				console.log(moment(Date.now()).format() + ": Principals appears to be expired... Refreshing");
+			if (Date.now() >= moment(user_principals.tokenExpirationTime).unix() * 1000) {
+				// console.log(user_principals.streamerInfo.tokenTimestamp);
+				// console.log(moment(user_principals.streamerInfo.tokenTimestamp).unix() * 1000);
+				// console.log(moment(user_principals.tokenExpirationTime).unix() * 1000);
+				// console.log(Date.now() > moment(user_principals.streamerInfo.tokenTimestamp).unix() * 1000);
+				// console.log(moment(Date.now()).format() + ": =================================================");
+				// console.log(moment(Date.now()).format() + ": Principals appears to be expired... Refreshing");
 				getdata("https://api.tdameritrade.com/v1/userprincipals?fields=streamerSubscriptionKeys%2CstreamerConnectionInfo%2Cpreferences%2CsurrogateIds")
 					.then((data) => {
 						// 3. now that you have the access token, store it so it persists over multiple instances of the script.
@@ -102,7 +103,7 @@ function validateprincipals() {
 							fs.writeFileSync("./auth/user_principals.json", JSON.stringify(data, undefined, 4), (err) => {
 								if (err) throw err;
 							});
-							principals = data
+							principals = data;
 							ok(`principals updated. Expires ${moment(data.tokenExpirationTime).fromNow()} `);
 						}
 						//debugger
@@ -111,11 +112,7 @@ function validateprincipals() {
 						console.log(moment(Date.now()).format(), fail);
 					});
 			} else {
-				// console.log(
-				// 	moment(Date.now()).format() +
-				// 		`: Principals OK updated ${moment(data.streamerInfo.tokenTimestamp).fromNow()}, expires ${moment(refreshTokenInfo.expires_on).add(90, "days").fromNow()}.`
-				// );
-				ok("principals OK")
+				ok(moment(Date.now()).format() + `: Principals updated ${moment(user_principals.streamerInfo.tokenTimestamp).fromNow()}, expires ${moment(user_principals.tokenExpirationTime).fromNow()}`);
 			}
 		});
 	} catch (error) {

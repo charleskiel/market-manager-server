@@ -5,16 +5,28 @@ const moment = require('moment');
 const WebSocket = require('websocket').w3cwebsocket;
 const os = require('os')
 const mysql = require('../mysql.js');
-const tdaSocket = require('./tdaSocket');
-const monitor = require('./monitor')
+//const monitor = require('../monitor').monitor;
 const account = require('./account')
 const auth = require('./auth')
 const watchlists = require('./watchlists')
 
 
 const getdata = require("./getdata").getData
+const socket = require('./tdaSocket.js');
 
+module.exports.socket = socket
 
+module.exports.aggregate = function () {
+	collect = false;
+    if (moment().day() == 0 && moment().hour() - 7 < 16 ){
+        collect = true;
+    } else if (moment().day() == 6) {
+		collect = true;
+	} else if (moment().day() < 0 && moment().day() > 5 && moment().hour() - 7 < 6 && moment().hour() - 7 > 16) {
+		collect == true;
+	}
+	return collect;
+};
 
 function getPriority(pid) { return os.getPriority(pid) }
 function setPriority(id, priority) { return os.setPriority(id, priority) }
@@ -31,7 +43,7 @@ module.exports.load = function() {
         watchlists.fetchWatchlists().then( (lists) => {
             console.log(lists)
             //debugger
-            tdaSocket.load()
+            socket.load()
             })
         }
     )
@@ -39,7 +51,7 @@ module.exports.load = function() {
 }
 
 
-module.exports.priceHistory = (req) => {
+module.exports.priceHistory = (key, params = null) => {
     return new Promise((result, error) => {
         //periodType: The type of period to show.Valid values are day, month, year, or ytd(year to date).Default is day.
         //period: The number of periods to show.
@@ -57,12 +69,12 @@ module.exports.priceHistory = (req) => {
         // ytd: 1 *
 
         let str = ""
-        if (req.frequency == "") {
-            str = `https://api.tdameritrade.com/v1/marketdata/${req.symbol}/pricehistory?&periodType=&period=1&frequencyType=minute&frequency=1`
-        }else{
-            str = `https://api.tdameritrade.com/v1/marketdata/${req.symbol}/pricehistory?&periodType=${req.periodType}&period=${req.period}&frequencyType=${req.frequencyType}&frequency=${req.frequency}`
-            
+        if (!params) {
+            str = `https://api.tdameritrade.com/v1/marketdata/${key}/pricehistory?&periodType=day&period=10&frequencyType=minute&frequency=1&startDate=${moment(moment().utcOffset("-05:00").startOf("day").add(-30, "day").unix()) * 1000}`
+        }else {
+            str = `https://api.tdameritrade.com/v1/marketdata/${symbol}/pricehistory?&periodType=${params.periodType}&period=${params.period}&frequencyType=${params.frequencyType}&frequency=${params.frequency}&startDate=${params.startDate}`;
         }
+
         getdata(str)
             .then((data) => {result(data)})
             .catch((fail) => {error(fail)})
@@ -73,33 +85,31 @@ module.exports.priceHistory = (req) => {
 
 module.exports.status = () => {
     return {
-        service: "status",
-        timestamp: Date.now(),
-        os: {
-            type : os.type  ,
-            endiannes : os.endianness,
-            hostname : os.hostname(),
-            networkInterfaces : os.networkInterfaces(),
-            platform : os.platform(),
-            release : os.release(),
-            totalmem : os.totalmem(),
-        },
-        system: {
-            fremem  : os.freemem(),
-            uptime  : os.uptime(),
-            loadavg :  os.loadavg(),
-            uptime  : os.uptime()
-        
-        },
-        app: {
-
-            systemtime: Date.now(),
-            tdaSocket: tdaSocket.status,
-            account: account.status(),
-            uptime: process.uptime()
-        },
-        actives : monitor.actives
-    }
+		service: "status",
+		timestamp: Date.now(),
+		os: {
+			type: os.type,
+			endiannes: os.endianness,
+			hostname: os.hostname(),
+			networkInterfaces: os.networkInterfaces(),
+			platform: os.platform(),
+			release: os.release(),
+			totalmem: os.totalmem(),
+		},
+		system: {
+			fremem: os.freemem(),
+			uptime: os.uptime(),
+			loadavg: os.loadavg(),
+			uptime: os.uptime(),
+		},
+		app: {
+			systemtime: Date.now(),
+			socket: socket.status,
+			account: account.status(),
+			uptime: process.uptime(),
+		},
+		actives: require("../monitor").monitor.actives,
+    };
     
 }
 
@@ -122,8 +132,8 @@ function status(){
 
 function watchPositions(){
     //console.log(account.status())
-    if (tdaSocket.status = "connected" && account.positions()) {
-        monitor.add(account.positions().map(p => p.instrument.symbol))
+    if (socket.status = "connected" && account.positions()) {
+        socket.event.emit("monitorAdd",account.positions().map(p => p.instrument.symbol))
     }
 }
 
@@ -146,7 +156,7 @@ module.exports.state = () => {
 
 
 
-var listener = tdaSocket.event.on("*", function (msg) {
+var listener = socket.event.on("*", function (msg) {
     //console.log(msg)
     relayToClients(msg)
     
@@ -209,7 +219,7 @@ function dbWrite(data){
                     // color = "\x1b[36m"
                     // if (data.service == "ACTIVES_OPTIONS") debugger;
                     // str = "INSERT INTO `" + data.service + "` (timestamp,content) VALUES (" + timestamp + ",'" + mysql_real_escape_string(JSON.stringify(_content)) + "') ON DUPLICATE KEY UPDATE content='" + mysql_real_escape_string(JSON.stringify(_content)) + "';"
-                    monitor.actives.add(data)
+                    //socket.event.emit("monitorAddActives",data)
                     break;
                 case "QUOTE":
                 case "LEVELONE_FUTURES":
@@ -298,9 +308,6 @@ function mysql_real_escape_string (str) {
     });
 }
 
-setInterval(status,10000)
-
-
 
 
 
@@ -339,7 +346,7 @@ console.log(socket)
                     switch (m.command){
                         case "LOGIN":
                             if( m.username === "demo" && m.password === "password"){
-                                clientSockets[socket] = {username : m.username, socket : socket, monitor: []}
+                                clientSockets[socket] = {username : m.username, socket : socket, clientMonitor: []}
                                 sendToClient(socket,{hello: "Hello!"})
                             }
                             break;
