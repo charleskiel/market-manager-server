@@ -4,6 +4,7 @@ var socketService = new WebSocketServer({server: httpsServer});
 var clientConnections = Object.create(null); // {}
 var monitor = require("./monitor.js").monitor;
 
+monitor.event.on("*", sendToClients(msg))
 
 socketService.on('connection', function connection(socket) {
     console.log(socket)
@@ -100,11 +101,12 @@ class ClientConnection {
 
         console.log(moment(Date.now()).format(), login);
         this.socket.send(login);
-    }-
+    }
 }
 
 
 const { send } = require('process');
+
 var httpsServer = https.createServer({
     key: fs.readFileSync('/etc/letsencrypt/live/charleskiel.dev/privkey.pem', 'utf8'),
     cert: fs.readFileSync('/etc/letsencrypt/live/charleskiel.dev/cert.pem', 'utf8')

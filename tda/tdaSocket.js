@@ -88,7 +88,7 @@ module.exports.load = () => {
 	ws.onopen = function () {
 		socketStatus("open")
 		console.log(moment(Date.now()).format() + ": Connection opened");
-		console.log(JSON.stringify({
+		console.log({
 			requests: [
 				{
 					service: "ADMIN",
@@ -104,7 +104,7 @@ module.exports.load = () => {
 					},
 				},
 			],
-		}))
+		})
 		ws.send(JSON.stringify({
 			requests: [
 				{

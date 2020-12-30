@@ -1,6 +1,6 @@
 const moment = require('moment');
 const express = require('express');
-const app = express();
+const app = require("express")();
 const https = require('https');
 var serveStatic = require('serve-static')
 
@@ -24,7 +24,7 @@ const monitor = require("./monitor.js").monitor;
 monitor.load()
 
 tda.load()
-tradier.load()
+//tradier.load()
 //alpaca.load()
 //coinbase.load()
 
@@ -41,7 +41,7 @@ app.use('/' ,express.static('../' ) );
 //app.use("/", express.static(path.join(__dirname, '/var/www/charelskiel.dev/')));
 
 //GET home route
-app.get('/accountinfo', (req, res,next) => {
+app.get('/accountinfo', (req, res) => {
      let access_token = JSON.parse(fs.readFileSync("./auth/access_token.json", (err) => { if (err) console.error(err); }))
      let refresh_token = JSON.parse(fs.readFileSync("./auth/refresh_token.json", (err) => { if (err) console.error(err); }))
      let account_info = JSON.parse(fs.readFileSync("./auth/account_info.json", (err) => { if (err) console.error(err); }))
@@ -57,7 +57,7 @@ app.get('/accountinfo', (req, res,next) => {
 });
 
 //GET home route
-app.get('/tda_callback', (req, res,next) => {
+app.get('/tda_callback', (req, res) => {
      let j = JSON.parse(fs.readFileSync("./auth/refresh_token.json", (err) => { if (err) console.error(err); }))
      j.code = decodeURIComponent(req.query.code)
      j.updated_on = Date.now()
@@ -135,11 +135,11 @@ app.get('/reddit', (req, res) => {
      res.send("Hello Reddit.")
 });
 
-https.createServer(app)
-     .listen({
-          key: fs.readFileSync('/etc/letsencrypt/live/charleskiel.dev/privkey.pem', 'utf8'),
-          cert: fs.readFileSync('/etc/letsencrypt/live/charleskiel.dev/cert.pem', 'utf8')}
-          ,8000)
+https.createServer({
+     key: fs.readFileSync('/etc/letsencrypt/live/charleskiel.dev/privkey.pem', 'utf8'),
+     cert: fs.readFileSync('/etc/letsencrypt/live/charleskiel.dev/cert.pem', 'utf8')
+     }, app)
+     .listen(8000)
      
 
 setInterval(function(){

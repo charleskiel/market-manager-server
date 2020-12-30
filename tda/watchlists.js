@@ -57,7 +57,7 @@ function transferWatchlists(lists){
 			result(p)
 		})
 		.catch(() => {
-			error(`Problem updating watchlist ${list.name}`)
+			error(`Problem updating watchlist ${lists}`)
 		})
 }	)
 }
