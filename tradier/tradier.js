@@ -11,10 +11,11 @@ const mysql = require('../mysql.js');
 
 
 
-module.exports.getData = require("./getData");
+const getData = require("./getData");
 const socket = require('./tradierSocket.js');
 
 module.exports.socket = socket
+module.exports.getData = getData
 
 
 //module.exports.chains = require("./getdata").chains
@@ -23,14 +24,18 @@ module.exports.socket = socket
 //module.exports.accountData = account.accountData
 var partmsg = ""
 module.exports.load = function() { 
-     //console.log(moment().day())
-     console.log(module.exports.aggregate())
      // getData.getTimeSales("AMD", "1min", "2020-11-14 09:30", "2020-12-14 20:00")
      //      .then((result) => {
      //           console.log(result)
      //           debugger
+     //           socket.load()
      //      });
-     // //socket.load()
+     getData.getStreamingSession()
+          .then((result) => {
+               console.log(result)
+               //debugger
+               socket.load(result.stream.url, result.stream.sessionid);
+          });
 
 }
 

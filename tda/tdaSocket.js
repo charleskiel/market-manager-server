@@ -49,7 +49,6 @@ const defaultFutures = [
 	"/LBS", // Lumber
 	"/NG", // Natural Gas
 ];
-
 module.exports.event = new EventEmitter2({
 	wildcard: true,
 	delimiter: ".",
@@ -59,41 +58,43 @@ module.exports.event = new EventEmitter2({
 	ignoreErrors: false,
 });
 
-let _requestId = 0; function requestId(){return _requestId += +1;};
-let _msgcount = 0; function msgcount(){return _msgcount += +1;};
-let _packetcount = 0; function packetcount(){return _packetcount += +1;};
+let _requestid = 0; function requestid(){return _requestid += +1;};
 let _socketStatus = "disconnected";
 
 let sendQueue = []
 let sendHistory = [] 
 let recHistory = []
 let callbacks = []
+
 function socketStatus(_status) {
 	_socketStatus = _status
-	module.exports.event.emit("socketStatus" , _status)
+	module.exports.event.emit("socketStatus", _status);
 }
 
-module.exports.status = {
-	socketStatus: _socketStatus,
-	sendhistory: sendHistory,
-	rechistory: recHistory,
-	requestId : _requestId,
-	msgcount : _msgcount,
-	packetcount : _packetcount,
-}
+// let status = {
+// 	socketStatus: _socketStatus,
+// 	sendhistory: sendHistory,
+// 	rechistory: recHistory,
+// 	requestid : _requestid,
+// 	msgCount : _msgcount,
+// 	packetCount : _packetcount,
+// }
 
 module.exports.load = () => {
-	ws = new WebSocket("wss://streamer-ws.tdameritrade.com/ws");
+	ws = new WebSocket("wss://streamer-ws.tdameritrade.com/ws", {
+		maxReceivedFrameSize: 2231149 * 8
+	});
 
 	ws.onopen = function () {
 		socketStatus("open")
 		console.log(moment(Date.now()).format() + ": Connection opened");
-		console.log({
+
+		msg = {
 			requests: [
 				{
 					service: "ADMIN",
 					command: "LOGIN",
-					requestId: requestId(),
+					requestid: requestid(),
 					account: auth.accountId(),
 					source: auth.appId(),
 					parameters: {
@@ -104,24 +105,9 @@ module.exports.load = () => {
 					},
 				},
 			],
-		})
-		ws.send(JSON.stringify({
-			requests: [
-				{
-					service: "ADMIN",
-					command: "LOGIN",
-					requestId: requestId(),
-					account: auth.accountId(),
-					source: auth.appId(),
-					parameters: {
-						credential: jsonToQueryString(auth.credentials()),
-						token: auth.credentials().token,
-						version: "1.0",
-						qoslevel: 0,
-					},
-				},
-			],
-		}));
+		};
+		//console.log(JSON.stringify(msg))
+		ws.send(JSON.stringify(msg));
 	};
 
 	ws.onmessage = function (message) {
@@ -139,9 +125,12 @@ module.exports.load = () => {
 		message.data = message.data.replace(` "C" `, ` -C- `);
 
 		try {
-			let packet = JSON.parse(message.data)
 			//console.log(packet) 
-			packetcount()
+			//if (message.data.includes(`""/`)) message.data = message.data.replace(`""`, `"`).replace(`""`, `"`);
+			let packet = JSON.parse(message.data)
+			module.exports.event.emit("dataCount" ,["socketDataReceived", message.data.length * 2])
+			module.exports.event.emit("dataCount" ,["socketPacketCountReceived", 1])
+			
 			let datacount = 0
 			
 
@@ -152,10 +141,11 @@ module.exports.load = () => {
 				})
 			} else {
 				if (packet.data) {
+					//module.exports.event.emit("dataCount" ,["socketMessageCountReceived", packet.data.length]);
 					packet.data.map((m) => {
 						datacount = m.content.length
 						m.content.map(e => {
-							msgcount()
+							
 							if (JSON.stringify(m.service) == "NEWS_HEADLINE") {
 								console.log(`\x1b[41m ${m.service} [${e.key}] : ${JSON.stringify(e)} \x1b[0m`);
 							} else {
@@ -167,6 +157,7 @@ module.exports.load = () => {
 				}
 
 				if (packet.response) {
+					module.exports.event.emit("dataCount" ,["socketMessageCountReceived", 1]);
 					packet.response.map((m) => {
 						
 						switch (m.service) {
@@ -184,21 +175,24 @@ module.exports.load = () => {
 								if (m.content.code === 0) {
 									console.log(`[${moment(Date.now()).format()}] ${m.service} \x1b[92m OK `);
 								} else {
-									console.log(`\x1b[44m [${moment(Date.now()).format()}] \x1b[0m  \x1b[44m [${m.requestId}] \x1b[0m  ${m.service}  \x1b[41m Fail  \x1b[0m ${m.content.msg}`,m)
+									console.log(`\x1b[44m [${moment(Date.now()).format()}] \x1b[0m  \x1b[44m [${m.requestid}] \x1b[0m  ${m.service}  \x1b[41m Fail  \x1b[0m ${m.content.msg}`,m)
 									console.log("\007");
 								}
 							break;
 						}
 					});
 				}
+				if (packet.snapshot) {
+					packet.snapshot[0].content.map((m) => {
+						console.log(m)
+					})
+				}
+
 			}
 		} catch (error) {
 			console.log("\x1b[41m", error);
 			console.log("\x1b[0m");
 		}
-
-		//setState({ packetcount: state.packetcount += 1 })
-		//console.log(event)
 	};
 
 	ws.onerror = function (error) {
@@ -211,7 +205,7 @@ module.exports.load = () => {
 		console.log(moment(Date.now()).format() + ": echo-protocol Connection Closed");
 		console.log(error);
 		//debugger
-		setTimeout(module.exports.load, 10000)
+		setTimeout(module.exports.load, 5000)
 	};
 	
 }
@@ -225,22 +219,23 @@ function sendMsg(c){
 
 
 function initStream() {
-	module.exports.sendServiceMsg("ACTIVES_NASDAQ", ["NASDAQ-60", "NASDAQ-300", "NASDAQ-600", "NASDAQ-1800", "NASDAQ-3600", "NASDAQ-ALL"]);
-	module.exports.sendServiceMsg("ACTIVES_OTCBB", ["OTCBB-60", "OTCBB-300", "OTCBB-600", "OTCBB-1800", "OTCBB-3600", "OTCBB-ALL"]);
-	module.exports.sendServiceMsg("ACTIVES_NYSE", ["NYSE-60", "NYSE-300", "NYSE-600", "NYSE-1800", "NYSE-3600", "NYSE-ALL"]);
-	module.exports.sendServiceMsg("ACTIVES_OPTIONS", ["OPTS-DESC-60", "OPTS-DESC-300", "OPTS-DESC-600", "OPTS-DESC-1800", "OPTS-DESC-3600", "OPTS-DESC-ALL"]);
+	module.exports.sendServiceMessage("ACTIVES_NASDAQ", ["NASDAQ-60", "NASDAQ-300", "NASDAQ-600", "NASDAQ-1800", "NASDAQ-3600", "NASDAQ-ALL"]);
+	module.exports.sendServiceMessage("ACTIVES_OTCBB", ["OTCBB-60", "OTCBB-300", "OTCBB-600", "OTCBB-1800", "OTCBB-3600", "OTCBB-ALL"]);
+	module.exports.sendServiceMessage("ACTIVES_NYSE", ["NYSE-60", "NYSE-300", "NYSE-600", "NYSE-1800", "NYSE-3600", "NYSE-ALL"]);
+	module.exports.sendServiceMessage("ACTIVES_OPTIONS", ["OPTS-DESC-60", "OPTS-DESC-300", "OPTS-DESC-600", "OPTS-DESC-1800", "OPTS-DESC-3600", "OPTS-DESC-ALL"]);
 	
 	//console.log(monitor.defaultStocks);
-	//module.exports.sendServiceMsg("equities", [...monitor.defaultStocks, ...monitor.equities(), ...monitor.indexes()]);
+	//module.exports.sendServiceMessage("equities", [...monitor.defaultStocks, ...monitor.equities(), ...monitor.indexes()]);
+	
 	module.exports.event.emit("monitorAddItems", [...defaultFutures.map(future => { return new Product(future) })] )
 }
 
 
 
 
-module.exports.sendServiceMsg = (_type, _keys, _callback = null) => {
+module.exports.sendServiceMessage = (_type, _keys, _callback = null) =>{
 	//console.log(_type);
-	console.log(_type,[..._keys].toString());
+	//console.log(_type,[..._keys].toString());
 	switch (_type) {
 		case "equities":
 		case "indexes":
@@ -249,7 +244,7 @@ module.exports.sendServiceMsg = (_type, _keys, _callback = null) => {
 				requests: [
 					{
 						service: "QUOTE",
-						requestId: requestId(),
+						requestid: requestid(),
 						command: "SUBS",
 						account: auth.accountId(),
 						source: auth.appId(),
@@ -260,7 +255,7 @@ module.exports.sendServiceMsg = (_type, _keys, _callback = null) => {
 					},
 					{
 						service: "CHART_EQUITY",
-						requestId: requestId(),
+						requestid: requestid(),
 						command: "SUBS",
 						account: auth.accountId(),
 						source: auth.appId(),
@@ -271,7 +266,7 @@ module.exports.sendServiceMsg = (_type, _keys, _callback = null) => {
 					},
 					{
 						service: "TIMESALE_EQUITY",
-						requestId: requestId(),
+						requestid: requestid(),
 						command: "SUBS",
 						account: auth.accountId(),
 						source: auth.appId(),
@@ -282,7 +277,7 @@ module.exports.sendServiceMsg = (_type, _keys, _callback = null) => {
 					},
 					{
 						service: "NEWS_HEADLINE",
-						requestId: requestId(),
+						requestid: requestid(),
 						command: "SUBS",
 						account: auth.accountId(),
 						source: auth.appId(),
@@ -294,7 +289,7 @@ module.exports.sendServiceMsg = (_type, _keys, _callback = null) => {
 					},
 					// {
 					// 	service: "NEWS_HEADLINELIST",
-					// 	requestId: requestId(),
+					// 	requestid: requestid(),
 					// 	command: "SUBS",
 					// 	account: auth.accountId(),
 					// 	source: auth.appId(),
@@ -305,7 +300,7 @@ module.exports.sendServiceMsg = (_type, _keys, _callback = null) => {
 					// },
 					// {
 					// 	service: "NEWS_STORY",
-					// 	requestId: requestId(),
+					// 	requestid: requestid(),
 					// 	command: "SUBS",
 					// 	account: auth.accountId(),
 					// 	source: auth.appId(),
@@ -323,7 +318,7 @@ module.exports.sendServiceMsg = (_type, _keys, _callback = null) => {
 				requests: [
 					{
 						service: "CHART_FUTURES",
-						requestId: requestId(),
+						requestid: requestid(),
 						command: "SUBS",
 						account: auth.accountId(),
 						source: auth.appId(),
@@ -331,9 +326,10 @@ module.exports.sendServiceMsg = (_type, _keys, _callback = null) => {
 							keys: [..._keys].toString(),
 							fields: "0,1,2,3,4,5,6,7",
 						},
-					},{
+					},
+					{
 						service: "LEVELONE_FUTURES",
-						requestId: requestId(),
+						requestid: requestid(),
 						command: "SUBS",
 						account: auth.accountId(),
 						source: auth.appId(),
@@ -341,19 +337,20 @@ module.exports.sendServiceMsg = (_type, _keys, _callback = null) => {
 							keys: [..._keys].toString(),
 							fields: "0,1,2,3,4,8,9,12,13,14,16,18,19,20,23,24,25,26,27,28,31",
 						},
-					// },{
-					// 	service: "FUTURES_BOOK",
-					// 	requestId: requestId(),
-					// 	command: "SUBS",
-					// 	account: auth.accountId(),
-					// 	source: auth.appId(),
-					// 	parameters: {
-					// 		keys: [..._keys].toString(),
-					// 		fields: "0,1,2,3,4,8,9,12,13,14,16,18,19,20,23,24,25,26,27,28,31",
-					// 	},
-					},{
+						// },{
+						// 	service: "FUTURES_BOOK",
+						// 	requestid: requestid(),
+						// 	command: "SUBS",
+						// 	account: auth.accountId(),
+						// 	source: auth.appId(),
+						// 	parameters: {
+						// 		keys: [..._keys].toString(),
+						// 		fields: "0,1,2,3,4,8,9,12,13,14,16,18,19,20,23,24,25,26,27,28,31",
+						// 	},
+					},
+					{
 						service: "TIMESALE_FUTURES",
-						requestId: requestId(),
+						requestid: requestid(),
 						command: "SUBS",
 						account: auth.accountId(),
 						source: auth.appId(),
@@ -371,7 +368,7 @@ module.exports.sendServiceMsg = (_type, _keys, _callback = null) => {
 				requests: [
 					{
 						service: "TIMESALE_OPTIONS",
-						requestId: requestId(),
+						requestid: requestid(),
 						command: "SUBS",
 						account: auth.accountId(),
 						source: auth.appId(),
@@ -391,7 +388,7 @@ module.exports.sendServiceMsg = (_type, _keys, _callback = null) => {
 				requests: [
 					{
 						service: _type,
-						requestId: requestId(),
+						requestid: requestid(),
 						command: "SUBS",
 						account: auth.accountId(),
 						source: auth.appId(),
@@ -403,29 +400,33 @@ module.exports.sendServiceMsg = (_type, _keys, _callback = null) => {
 				],
 			});
 			break;
-		case "getFutureChart":
-			let callbackId = requestId();
-			sendMsg({
-				requests: [
-					{
-						service: _type,
-						requestId: callbackId,
-						command: "SUBS",
-						account: auth.accountId(),
-						source: auth.appId(),
-						parameters: {
-							keys: [..._keys].toString(),
-							fields: "0,1",
-						},
-					},
-				],
-			});
+		case "CHART_HISTORY_FUTURES":
+			// let callbackId = requestid();
+			// console.log(moment(moment().utcOffset("-05:00").startOf("day").unix()) * 1000);
+			// console.log(moment(moment().utcOffset("-05:00").startOf("day").add(-30, "day").unix()) * 1000);		
+			
+			// sendMsg({
+			// 	requests: [
+			// 		{
+			// 			service: _type,
+			// 			requestid: callbackId,
+			// 			command: "GET",
+			// 			account: auth.accountId(),
+			// 			source: auth.appId(),
+			// 			parameters: {
+			// 				keys: _keys,
+			// 				END_TIME: moment(moment().utcOffset("-05:00").startOf("day").unix()) * 1000,
+			// 				START_TIME: moment(moment().utcOffset("-05:00").startOf("day").add(-30 , "day").unix()) * 1000,
+			// 				frequency: "m1"
+			// 			},
+			// 		},
+			// 	],
+			// });
 
-			callbacks[callbackId] = _callback
+			// callbacks[callbackId] = _callback;
 			break;
 		default:
-			debugger
-
+			debugger;
 	}
 }
 
@@ -434,6 +435,10 @@ module.exports.sendServiceMsg = (_type, _keys, _callback = null) => {
 setInterval(() => {
 	if (_socketStatus === "connected" && sendQueue.length > 0) {
 		console.log(moment(Date.now()).format() + `: Send to TDA:`, sendQueue[0]);
+		module.exports.event.emit("dataCount" ,["socketPacketCountSent", 1]);
+		module.exports.event.emit("dataCount" ,["socketMessageCountSent", sendQueue[0].length]);
+		module.exports.event.emit("dataCount" ,["socketDataSent", JSON.stringify(sendQueue[0]).length * 2]);
+
 		sendHistory.push(sendQueue[0]);
 		ws.send(JSON.stringify(sendQueue.shift()));
 	}
@@ -441,4 +446,4 @@ setInterval(() => {
 , 200);
 
 
-jsonToQueryString = (json) => { return Object.keys(json).map(function (key) { return (encodeURIComponent(key) + "=" + encodeURIComponent(json[key])); }).join("&"); };
+function jsonToQueryString(json){ return Object.keys(json).map(function (key) { return (encodeURIComponent(key) + "=" + encodeURIComponent(json[key])); }).join("&"); };

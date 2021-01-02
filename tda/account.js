@@ -1,19 +1,18 @@
 const fs = require('fs');
-const request = require('request');
+const getData = require('./getdata').getData;
 const _ = require('lodash')
 const moment = require('moment');
 const mysql = require('../mysql.js');
-
+const socket = require('./tdaSocket')
 
 var history = []
 //var currentMinute = { h: 0.0 , l: 0.0, o: 0.0, c: 0.0  }
 
 var account = {}
 var positions = []
-function getHistory() {
+
+module.exports.getHistory = () => {
 	mysql.query("select * from account limit (24*60) ")
-
-
 	return history
 }
 
@@ -28,7 +27,7 @@ module.exports.positions = () => {
 	return account[0].securitiesAccount.positions
 }
 
-module.exports.tick = (acc) =>{
+function tick(acc){
 	account = acc
 	if (history.length === 0) {
 		history.push({
@@ -62,48 +61,48 @@ module.exports.tick = (acc) =>{
 			//console.log(`Setting ${e} close for ${Date.now() - (Date.now() % 60000)} to ${account[e]}` )
 		})
 
-		mysql.query(`INSERT INTO  account
-		(timestamp,
-		liquidationValue,
-		longMarketValue,
-		shortMarketValue,
-		availableFunds,
-		availableFundsNonMarginableTrade,
-		buyingPower,
-		buyingPowerNonMarginableTrade,
-		dayTradingBuyingPower,
-		equity,
-		equityPercentage,
-		longMarginValue,
-		maintenanceCall,
-		maintenanceRequirement,
-		marginBalance,
-		regTCall,
-		shortBalance,
-		shortMarginValue,
-		shortOptionMarketValue)
-		VALUES
-		(
-		${history[history.length -1].timestamp},
-		${account[0].securitiesAccount.currentBalances.liquidationValue},
-		${account[0].securitiesAccount.currentBalances.longMarketValue},
-		${account[0].securitiesAccount.currentBalances.shortMarketValue},
-		${account[0].securitiesAccount.currentBalances.availableFunds},
-		${account[0].securitiesAccount.currentBalances.availableFundsNonMarginableTrade},
-		${account[0].securitiesAccount.currentBalances.buyingPower},
-		${account[0].securitiesAccount.currentBalances.buyingPowerNonMarginableTrade},
-		${account[0].securitiesAccount.currentBalances.dayTradingBuyingPower},
-		${account[0].securitiesAccount.currentBalances.equity},
-		${account[0].securitiesAccount.currentBalances.equityPercentage},
-		${account[0].securitiesAccount.currentBalances.longMarginValue},
-		${account[0].securitiesAccount.currentBalances.maintenanceCall},
-		${account[0].securitiesAccount.currentBalances.maintenanceRequirement},
-		${account[0].securitiesAccount.currentBalances.marginBalance},
-		${account[0].securitiesAccount.currentBalances.regTCall},
-		${account[0].securitiesAccount.currentBalances.shortBalance},
-		${account[0].securitiesAccount.currentBalances.shortMarginValue},
-		${account[0].securitiesAccount.currentBalances.shortOptionMarketValue}
-		)`)
+		// mysql.query(`INSERT INTO  account
+		// (timestamp,
+		// liquidationValue,
+		// longMarketValue,
+		// shortMarketValue,
+		// availableFunds,
+		// availableFundsNonMarginableTrade,
+		// buyingPower,
+		// buyingPowerNonMarginableTrade,
+		// dayTradingBuyingPower,
+		// equity,
+		// equityPercentage,
+		// longMarginValue,
+		// maintenanceCall,
+		// maintenanceRequirement,
+		// marginBalance,
+		// regTCall,
+		// shortBalance,
+		// shortMarginValue,
+		// shortOptionMarketValue)
+		// VALUES
+		// (
+		// ${history[history.length -1].timestamp},
+		// ${account[0].securitiesAccount.currentBalances.liquidationValue},
+		// ${account[0].securitiesAccount.currentBalances.longMarketValue},
+		// ${account[0].securitiesAccount.currentBalances.shortMarketValue},
+		// ${account[0].securitiesAccount.currentBalances.availableFunds},
+		// ${account[0].securitiesAccount.currentBalances.availableFundsNonMarginableTrade},
+		// ${account[0].securitiesAccount.currentBalances.buyingPower},
+		// ${account[0].securitiesAccount.currentBalances.buyingPowerNonMarginableTrade},
+		// ${account[0].securitiesAccount.currentBalances.dayTradingBuyingPower},
+		// ${account[0].securitiesAccount.currentBalances.equity},
+		// ${account[0].securitiesAccount.currentBalances.equityPercentage},
+		// ${account[0].securitiesAccount.currentBalances.longMarginValue},
+		// ${account[0].securitiesAccount.currentBalances.maintenanceCall},
+		// ${account[0].securitiesAccount.currentBalances.maintenanceRequirement},
+		// ${account[0].securitiesAccount.currentBalances.marginBalance},
+		// ${account[0].securitiesAccount.currentBalances.regTCall},
+		// ${account[0].securitiesAccount.currentBalances.shortBalance},
+		// ${account[0].securitiesAccount.currentBalances.shortMarginValue},
+		// ${account[0].securitiesAccount.currentBalances.shortOptionMarketValue}
+		// )`)
 
 		history.push({
 			timestamp : Date.now() - (Date.now() % 60000),
@@ -139,12 +138,27 @@ module.exports.tick = (acc) =>{
 
 
 
-module.exports.accountStatus = () => {
-	getdata(`https://api.tdameritrade.com/v1/accounts?fields=positions,orders`)
+module.exports.getAccountStatus = () =>{
+	getData(`https://api.tdameritrade.com/v1/accounts?fields=positions,orders`)
 	    .then((data) => {
 		   tick(data)
 		   watchPositions()
-		   console.log(account.positions())
+		   //console.log(module.exports.positions());
 	    }
 	)
- }
+}
+
+
+function watchPositions() {
+	//console.log(account.status())
+	if ((socket.status = "connected" && module.exports.positions())) {
+		socket.event.emit(
+			"monitorAdd",
+			module.exports.positions().map((p) => p.instrument.symbol)
+		);
+	}
+}
+
+module.exports.watch = () => {
+	setInterval(module.exports.getAccountStatus, 3000)
+}

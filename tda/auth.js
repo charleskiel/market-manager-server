@@ -2,7 +2,7 @@ const fs = require('fs');
 const moment = require("moment");
 const request = require("request");
 
-const getdata = require ('./getdata').getData
+const getData = require('./getdata')
 
 
 let principals = JSON.parse(fs.readFileSync("./auth/user_principals.json"));
@@ -84,7 +84,7 @@ function validateprincipals() {
 				// console.log(Date.now() > moment(user_principals.streamerInfo.tokenTimestamp).unix() * 1000);
 				// console.log(moment(Date.now()).format() + ": =================================================");
 				// console.log(moment(Date.now()).format() + ": Principals appears to be expired... Refreshing");
-				getdata("https://api.tdameritrade.com/v1/userprincipals?fields=streamerSubscriptionKeys%2CstreamerConnectionInfo%2Cpreferences%2CsurrogateIds")
+				getData.getData("https://api.tdameritrade.com/v1/userprincipals?fields=streamerSubscriptionKeys%2CstreamerConnectionInfo%2Cpreferences%2CsurrogateIds")
 					.then((data) => {
 						// 3. now that you have the access token, store it so it persists over multiple instances of the script.
 						console.log(data);
