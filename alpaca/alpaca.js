@@ -1,107 +1,97 @@
 const fs = require('fs');
-const Alpaca = require('@alpacahq/alpaca-trade-api')
-const auth = JSON.parse(fs.readFileSync("../auth/alpaca.json", (err) => { if (err) console.error(err); }))
-
-
-const alpaca = new Alpaca(auth)
-
-
-
+//const Alpaca = require('@alpacahq/alpaca-trade-api')
+let auth = JSON.parse(fs.readFileSync("./auth/alpaca.json", (err) => { if (err) console.error(err); }))
+const socket = require('./alpacaSocket')
+//const alpacaAPI = new Alpaca()
    
+module.exports.socket = socket
+socket.load(auth)
 const request = require('request');
 const moment = require('moment');
-const api = {
-	"APCA-API-KEY-ID" : "PKO9GWMZK2KN2WSMUG6U",
-	"APCA-API-SECRET-KEY" : "e28zy2JsJ2jxzpz67y7nD9cyxiO050nyFOtvwRME",
-	"ENDPOINT" : "https://paper-api.alpaca.markets"
-}
+
+// module.exports.refresh = () => {
+// 	//api = JSON.parse(fs.readFileSync('./alpaca/api.json'))
+// 	console.log("Starting")
+// 	test()
+// }
+
+// module.exports.quote = (req) => {
+// 	return new Promise((result, error) => {
+// 		console.log(req)
+// 		getdata(api.endpoint + "/v1/last_quote/stocks/" + req.query.symbol )
+// 		.then((fetch) => {result(JSON.parse(fetch))})
+// 		.catch((fail) => { error(fail) })
+// 	})
+// }
+
+// module.exports.priceHistory = (req) => {
+//     return new Promise((result, error) => {
+// 	alpaca.getBars('1Min', req.symbols.toString(), {start:'2020-04-20', end:'2020-04-29'}).then((response) => {
+//           console.log(response)
+// 		result(response)
+//      })
+// 	error("error")
+//     })
+// }
 
 
 
 
-module.exports.refresh = () => {
-	//api = JSON.parse(fs.readFileSync('./alpaca/api.json'))
-	console.log("Starting")
-	test()
-}
-
-module.exports.quote = (req) => {
-	return new Promise((result, error) => {
-		console.log(req)
-		getdata(api.endpoint + "/v1/last_quote/stocks/" + req.query.symbol )
-		.then((fetch) => {result(JSON.parse(fetch))})
-		.catch((fail) => { error(fail) })
-	})
-}
-
-module.exports.priceHistory = (req) => {
-    return new Promise((result, error) => {
-	alpaca.getBars('1Min', req.symbols.toString(), {start:'2020-04-20', end:'2020-04-29'}).then((response) => {
-          console.log(response)
-		result(response)
-     })
-	error("error")
-    })
-}
-
-
-
-
-function getdata(endpoint) {
-	console.log(endpoint)
-	return new Promise((result, fail) => {
-		const options = {
-			headers: api,
+// function getdata(endpoint) {
+// 	console.log(endpoint)
+// 	return new Promise((result, fail) => {
+// 		const options = {
+// 			headers: api,
 			
-			url: endpoint,
-			method: 'GET',
-		};
+// 			url: endpoint,
+// 			method: 'GET',
+// 		};
 
-		request(options, function (error, response, body) {
-			if (response.statusCode === 200) {
-				if (body != "") {
+// 		request(options, function (error, response, body) {
+// 			if (response.statusCode === 200) {
+// 				if (body != "") {
 				
-				console.log(body)
-				let j = JSON.parse(body)
-				console.log(j);
-				result(j)
-				} else
-				{
-					fail(response.statusMessage)
-					}
+// 				console.log(body)
+// 				let j = JSON.parse(body)
+// 				console.log(j);
+// 				result(j)
+// 				} else
+// 				{
+// 					fail(response.statusMessage)
+// 					}
 				
-			}
-			else {
-				switch (response.statusCode) {
-					case 401:
-					console.log('401 hint: refresh token');
-					refreshAccessToken();
-					break;
-					default:
-					console.log(`ERROR: ${response.statuscode}:::  ${response.statusMessage}`);
-					break;
-				}
-				fail({
-					name: response.statusCode,
-					message: "ERROR"
-				})
+// 			}
+// 			else {
+// 				switch (response.statusCode) {
+// 					case 401:
+// 					console.log('401 hint: refresh token');
+// 					refreshAccessToken();
+// 					break;
+// 					default:
+// 					console.log(`ERROR: ${response.statuscode}:::  ${response.statusMessage}`);
+// 					break;
+// 				}
+// 				fail({
+// 					name: response.statusCode,
+// 					message: "ERROR"
+// 				})
 
-			} 
+// 			} 
 			
-		})
+// 		})
 
-	});
+// 	});
 
 
-}
+// }
 
-function test(){
+// function test(){
 
 
 	   
-	//console.log("Quote")
-	//console.log(module.exports.quote({req : {query: {symbol: "roku"}}}))
-}
+// 	//console.log("Quote")
+// 	//console.log(module.exports.quote({req : {query: {symbol: "roku"}}}))
+// }
 
 
 // module.exports.collectData = collectData

@@ -1,4 +1,13 @@
-// const CoinbasePro = require('coinbase-pro')
+const fs = require('fs');
+//const Alpaca = require('@alpacahq/alpaca-trade-api')
+let auth = JSON.parse(fs.readFileSync("./auth/coinbase.json", (err) => { if (err) console.error(err); }))
+const socket = require('./coinbaseSocket')
+   
+module.exports.socket = socket
+socket.load(auth)
+const request = require('request');
+const moment = require('moment');// const CoinbasePro = require('coinbase-pro')
+
 
 
 // const websocket = new CoinbasePro.WebsocketClient(

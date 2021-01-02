@@ -1,21 +1,27 @@
-//const WebSocket = require('websocket').w3cwebsocket;
-var WebSocketServer = require('ws').Server;
-var socketService = new WebSocketServer({server: httpsServer});
-var clientConnections = Object.create(null); // {}
+const fs = require("fs");
+const moment = require("moment");
 var monitor = require("./monitor.js").monitor;
 
-monitor.event.on("*", sendToClients(msg))
+var clientConnections = Object.create(null); // {}
+
+const https = require("https");
+var WebSocketServer = require('ws').Server;
+var httpsServer = https.createServer({
+    key: fs.readFileSync('/etc/letsencrypt/live/charleskiel.dev/privkey.pem', 'utf8'),
+    cert: fs.readFileSync('/etc/letsencrypt/live/charleskiel.dev/cert.pem', 'utf8')
+}).listen(7999);
+var socketService = new WebSocketServer({server: httpsServer});
+
+
+var EventEmitter2 = require("eventemitter2");
+
+//monitor.event.on("*", sendToClients(msg))
 
 socketService.on('connection', function connection(socket) {
     console.log(socket)
     socket.on('message', msg => {
         clientConnections[socket].message(JSON.parse(msg))
         console.log(`Received messages from ${socket._socket.remoteAddress}`, msg)
-        //     if (msg.me == "login") {
-        //         //clientConnections[socket] = new user(msg.data, socket, loggedin)
-        //         console.log(`Logged in: ${JSON.stringify(clientConnections[socket])}`)
-        //         //clientConnections[socket].socket.send(JSON.stringify(clientConnections[socket]))
-        //     }
     })
         
     socket.on('open', msg => {
@@ -30,13 +36,49 @@ socketService.on('connection', function connection(socket) {
 
 
 class ClientConnection {
+
+    
     socket = Object.create(null);
     monitor = []
-    requestID = 0
+
+    _requestid = 0; 
+    _msgcount = 0; 
+    _packetcount = 0; 
+    _socketStatus = "disconnected";
+    sendQueue = []
+    sendHistory = [] 
+    recHistory = []
+    callbacks = []
+    socketStatus(_status) {
+        _socketStatus = _status
+        module.exports.event.emit("socketStatus" , _status)
+    }
+    requestid(){return _requestid += +1;};
+    msgcount(){return _msgcount += +1;};
+    packetcount(){return _packetcount += +1;};
+
+
     constructor(socket) {
-        this.socket = socket
-        this.login()
-        
+		this.socket = socket;
+        console.log("Connected to Client", socket);
+
+        let login = JSON.stringify({
+            response: [
+                {
+                    service : "ADMIN",
+                    requestid : this.requestid(),
+                    command : "LOGIN",
+                    timestamp : Date.now(),
+                    content : {
+                        code: 0,
+                        msg: "29-3"
+                    }
+                }
+            ]
+        });
+
+        console.log(moment(Date.now()).format(), login)
+        this.socket.send(login);
     }
 
     message = (msg) => {
@@ -45,34 +87,56 @@ class ClientConnection {
                 switch (msg.command) {
                     case "LOGIN":
                         if (msg.username === "demo" && msg.password === "password") {
-                            clientConnections[socket] = new ClientConnection(socket)
-                            clientConnections[socket].send({ hello: "Hello!" })
+                            this.send({
+                                response: [
+                                    {
+                                        service: "LOGIN",
+                                        command: msg.command,
+                                        content: "OK",
+                                        requestid: msg.requestid,
+                                        timestamp: Date.now(),
+                                    },
+                                ],
+                            });
                         }
+                        setInterval(executeSendQueue, 200)
+
                         break;
                         
                     case "SETCOMMANDKEY":
                         if (auth.checkCommandKey(msg.commandKey)) {
                             //clientConnections[socket] = msg.username
-                            clientConnections[socket].send({
+                            this.send({
                                 response: [
                                     {
                                         service: "ADMIN",
-                                        command: "SETTING",
-                                        setting: { commandKeyStatus: "granted" },
-                                        requestId: msg.requestId,
+                                        command: msg.command,
+                                        content: "OK",
+                                        requestid: msg.requestid,
+                                        timestamp: Date.now(),
                                     },
                                 ],
-                            });
+		    				});
                         }
                         break;
                 }
             case "MONITOR":
                 switch (msg.command) {
-                    case "ADD":
-                        msg.content.map(key => {
-                            monitor.products[key].event.on("*", data => { send(data) })
-                        })
-                }
+					case "ADD":
+						msg.content.map((key) => {
+							this.monitor[key] = { watch: true, getChartHistory: false };
+							monitor.products[key].event.on("*", (data) => {
+								this.send(data);
+							});
+						});
+					case "REMOVE":
+						msg.content.map((key) => {
+							this.monitor[key] = { watch: false, getChartHistory: false };
+							monitor.products[key].event.on("*", (data) => {
+								this.send(data);
+							});
+						});
+				}
         }
     }
 
@@ -86,31 +150,53 @@ class ClientConnection {
         }
     }
 
+    addToSendQueue = (msg) => {
+        console.log(msg)
+    }
+
+    executeSendQueue = () => {
+        this.socket.send(JSON.stringify(this.sendQueue))
+    }
+    send = (msg) => {this.socket.send(JSON.stringify(msg))}
+
     login = () => {
-        clientConnections[socket].send({
-            resquest: [
+        this.socket.send(JSON.stringify({
+            request: [
                 {
                     service: "ADMIN",
-                    requestId: "1",
+                    requestid: this.requestid(),
                     command: "LOGIN",
                     timestamp: Date.now(),
-                    content: { code: 0, msg: "00-1" },
-                },
-            ],
-        });
-
-        console.log(moment(Date.now()).format(), login);
-        this.socket.send(login);
+                    content: {
+                        code: 0,
+                        msg: "29-3"
+                    }
+                }
+            ]
+        }))
     }
 }
 
 
-const { send } = require('process');
 
-var httpsServer = https.createServer({
-    key: fs.readFileSync('/etc/letsencrypt/live/charleskiel.dev/privkey.pem', 'utf8'),
-    cert: fs.readFileSync('/etc/letsencrypt/live/charleskiel.dev/cert.pem', 'utf8')
-}).listen(7999);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+const { send } = require('process');
 
 function sendToClient(socket,message) {
     //console.log(clientSockets[socket])
@@ -124,17 +210,19 @@ function sendToClient(socket,message) {
 
 
 function sendToClients(message) {
-	clientConnections.forEach( client => {
-		if ( client.readyState === 1 ){
-			//console.log("Sending" , JSON.stringify(message))
-          	client.send(JSON.stringify(message))
-        }
-    });
+    if (clientConnections.length > 0) {
+        clientConnections.forEach( client => {
+            if ( client.readyState === 1 ){
+                //console.log("Sending" , JSON.stringify(message))
+                client.send(JSON.stringify(message))
+            }
+        });
+    }
 }
 
 
 module.exports = {
-    ClientConnections: ClientConnections,
+    ClientConnections: clientConnections,
     socketService: socketService,
     sendToClients : sendToClients
 }

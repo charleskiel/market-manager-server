@@ -1,22 +1,22 @@
 const fs = require('fs');
-const request = require('request');
 const _ = require('lodash')
 const moment = require('moment');
-const WebSocket = require('websocket').w3cwebsocket;
 const os = require('os')
-const mysql = require('../mysql.js');
 //const monitor = require('../monitor').monitor;
 const account = require('./account')
 const auth = require('./auth')
 const watchlists = require('./watchlists')
-
-
-const getdata = require("./getdata").getData
 const socket = require('./tdaSocket.js');
 
-module.exports.socket = socket
+module.exports.getData = require('./getdata')
 
-module.exports.aggregate = function () {
+module.exports.socket = socket;
+
+module.exports.account = account
+module.exports.status = account.status
+
+
+module.exports.aggregate = () => {
 	collect = false;
     if (moment().day() == 0 && moment().hour() - 7 < 16 ){
         collect = true;
@@ -28,80 +28,28 @@ module.exports.aggregate = function () {
 	return collect;
 };
 
-function getPriority(pid) { return os.getPriority(pid) }
-function setPriority(id, priority) { return os.setPriority(id, priority) }
-
-module.exports.chains = require("./getdata").chains
+// function getPriority(pid) { return os.getPriority(pid) }
+// function setPriority(id, priority) { return os.setPriority(id, priority) }
 
 
-module.exports.getWatchlists = watchlists.fetchWatchlists
-module.exports.accountData = account.accountData
-var partmsg = ""
-module.exports.load = function() { 
+module.exports.load = () => { 
     auth.refresh().then(() => {
-
         watchlists.fetchWatchlists().then( (lists) => {
             console.log(lists)
             //debugger
             socket.load()
+            account.watch()
             })
         }
     )
-
 }
-
-
-module.exports.priceHistory = (key, params = null) => {
-    return new Promise((result, error) => {
-        //periodType: The type of period to show.Valid values are day, month, year, or ytd(year to date).Default is day.
-        //period: The number of periods to show.
-        //Example: For a 2 day / 1 min chart, the values would be:
-        // period: 2
-        // periodType: day
-        // frequency: 1
-        // frequencyType: min
-
-        // Valid periods by periodType(defaults marked with an asterisk):
-
-        // day: 1, 2, 3, 4, 5, 10 *
-        // month: 1 *, 2, 3, 6
-        // year: 1 *, 2, 3, 5, 10, 15, 20
-        // ytd: 1 *
-
-        let str = ""
-        if (!params) {
-            str = `https://api.tdameritrade.com/v1/marketdata/${key}/pricehistory?&periodType=day&period=10&frequencyType=minute&frequency=1&startDate=${moment(moment().utcOffset("-05:00").startOf("day").add(-30, "day").unix()) * 1000}`
-        }else {
-            str = `https://api.tdameritrade.com/v1/marketdata/${symbol}/pricehistory?&periodType=${params.periodType}&period=${params.period}&frequencyType=${params.frequencyType}&frequency=${params.frequency}&startDate=${params.startDate}`;
-        }
-
-        getdata(str)
-            .then((data) => {result(data)})
-            .catch((fail) => {error(fail)})
-    })
-}
-
-
 
 module.exports.status = () => {
+    
     return {
-		service: "status",
+		service: "TDAstatus",
 		timestamp: Date.now(),
-		os: {
-			type: os.type,
-			endiannes: os.endianness,
-			hostname: os.hostname(),
-			networkInterfaces: os.networkInterfaces(),
-			platform: os.platform(),
-			release: os.release(),
-			totalmem: os.totalmem(),
-		},
-		system: {
-			fremem: os.freemem(),
-			uptime: os.uptime(),
-			loadavg: os.loadavg(),
-			uptime: os.uptime(),
-		},
+		
 		app: {
 			systemtime: Date.now(),
 			socket: socket.status,
@@ -113,46 +61,7 @@ module.exports.status = () => {
     
 }
 
-function status(){
-    getdata(`https://api.tdameritrade.com/v1/accounts?fields=positions,orders`)
-        .then((data) => {
-            account.tick(data)
-            
-            results = {
-                service: "STATUS",
-                timestamp: Date.now(),
-                content: data,
-            }
-            dbWrite(results)
-            watchPositions()
-        }
-    )
-}
 
-
-function watchPositions(){
-    //console.log(account.status())
-    if (socket.status = "connected" && account.positions()) {
-        socket.event.emit("monitorAdd",account.positions().map(p => p.instrument.symbol))
-    }
-}
-
-
-module.exports.state = () => {
-
-    console.log({...monitor.list()})
-    // console.log(test)
-    return new Promise((result,error) =>{
-        result({
-                actives : monitor.actives,
-                stocks : {...monitor.list()},
-                account: account.status(),
-                
-                
-            })
-        error(fail)
-    })
-}
 
 
 
@@ -308,120 +217,8 @@ function mysql_real_escape_string (str) {
     });
 }
 
-
-
-
-
-
-
-
-
-
-
-
-// const https = require('https');
-// const { send } = require('process');
-// var httpsServer = https.createServer({
-//     key: fs.readFileSync('/etc/letsencrypt/live/charleskiel.dev/privkey.pem', 'utf8'),
-//     cert: fs.readFileSync('/etc/letsencrypt/live/charleskiel.dev/cert.pem', 'utf8')
-// }).listen(7999);
-
-
-// var WebSocketServer = require('ws').Server;
-// var clientSocket = new WebSocketServer({server: httpsServer});
-
-// var clientSockets = Object.create(null);
-
-// clientSocket.on('connection', function connection(socket) {
-
-// console.log(socket)
-// 	socket.on('message', msg => {
-//         console.log(`Received messages from ${socket._socket.remoteAddress}`, msg)
-
-//         msg = JSON.parse(msg)
-//         msg.requests.map((m) => { 
-//             console.log(`Received msg from ${socket._socket.remoteAddress}`,msg)
-//             switch (m.service) {
-//                 case "ADMIN":
-//                     switch (m.command){
-//                         case "LOGIN":
-//                             if( m.username === "demo" && m.password === "password"){
-//                                 clientSockets[socket] = {username : m.username, socket : socket, clientMonitor: []}
-//                                 sendToClient(socket,{hello: "Hello!"})
-//                             }
-//                             break;
-//                         case "SETCOMMANDKEY":
-//                             if(auth.checkCommandKey(m.commandKey)){
-//                                 clientSockets[socket] = m.username
-//                                 sendToClient(socket,{
-//                                     response: [
-//                                         {
-//                                             service: "ADMIN",
-//                                             command: "SETTING",
-//                                             setting: {commandKeyStatus: "granted"},
-//                                             requestId: m.requestId,
-//                                         },
-//                                     ]
-//                                 })
-
-//                             break;}
-//                     }
-//             }
-        
-//             if (msg.me == "login") {
-//                 //clientSockets[socket] = new user(msg.data, socket, loggedin)
-//                 console.log(`Logged in: ${JSON.stringify(clientSockets[socket])}`)
-//                 //clientSockets[socket].socket.send(JSON.stringify(clientSockets[socket]))
-//             }
-//         })
-        
-//     })
-
-// 	socket.on('open', msg => {
-//         console.log("Connected to Server ", msg);
-
-//         let login = JSON.stringify({
-//             response: [
-//                 {
-//                     service : "ADMIN", 
-//                     requestId : "1", 
-//                     command : "LOGIN", 
-//                     timestamp : 1400593928788, 
-//                     content : {
-//                         code: 0, 
-//                         msg: "29-3"
-//                     }
-//                 }
-//             ]
-//         });
-        
-//         console.log(moment(Date.now()).format(), login)
-//         this.socket.send(login);
-// 	})
-
-
-// })
-
-
-// function sendToClient(socket,message) {
-//     //console.log(clientSockets[socket])
-//     //console.log(`tosendmessage`, JSON.stringify(message))
-    
-	
-//     if (socket.readyState === 1 ){
-//         console.log(`Sending message`, JSON.stringify(message))
-//         socket.send(JSON.stringify(message))
-//     }
-    	
-// }
-
-
-
-// function relayToClients(message) {
-// 	clientSocket.clients.forEach( client => {
-// 		if ( client.readyState === 1 ){
-// 			//console.log("Sending" , JSON.stringify(message))
-//           	client.send(JSON.stringify(message))
-//         	}
-//     	});
-// }
+setInterval(function () {
+	account.status();
+	//tradier.status()
+	//alpaca.status()
+}, 10000);

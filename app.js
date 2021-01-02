@@ -16,18 +16,18 @@ const coinbase = require('./coinbase/coinbase')
 
 const productClass = require("./productClass.js").Product;
 
-const monitor = require("./monitor.js").monitor;
+const monitor = require("./monitor.js")
 //const mysql = require("./mysql.js");
 //const reddit = require('./reddit/reddit')
 //const fetch = require('node-fetch');
 
-monitor.load()
 
 tda.load()
-//tradier.load()
+tradier.load()
 //alpaca.load()
 //coinbase.load()
 
+monitor.load()
 
 
 app.use(function(req, res, next) {
@@ -100,8 +100,8 @@ app.get('/watchlist', (req, res) => {
      })
 });
 
-app.get('/state', (req, res) => {
-     tda.state().then(data => {
+app.get('/mm/state', (req, res) => {
+     monitor.state().then(data => {
           console.log(`Sucuess: ${data}`)
           res.send(JSON.stringify(data, undefined, 4));
      }, error => {
@@ -135,6 +135,10 @@ app.get('/reddit', (req, res) => {
      res.send("Hello Reddit.")
 });
 
+app.get('/mm/data', (req, res) => {
+     res.send(JSON.stringify(monitor.getDataStats(), undefined, 4));
+});
+
 https.createServer({
      key: fs.readFileSync('/etc/letsencrypt/live/charleskiel.dev/privkey.pem', 'utf8'),
      cert: fs.readFileSync('/etc/letsencrypt/live/charleskiel.dev/cert.pem', 'utf8')
@@ -142,8 +146,3 @@ https.createServer({
      .listen(8000)
      
 
-setInterval(function(){
-     tda.status()
-     //tradier.status()
-     //alpaca.status()
-}, 10000);

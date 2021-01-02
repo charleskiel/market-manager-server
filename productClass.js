@@ -4,20 +4,21 @@ const EventEmitter2 = require("eventemitter2");
 const tda = require("./tda/tda.js")
 //const { quote } = require("./alpaca/alpaca.js");
 
-
-
-class Product {
-	key = "";
-	type = "";
-	event = new EventEmitter2({
+let event = new EventEmitter2({
 		wildcard: true,
 		delimiter: ".",
 		newListener: false,
 		removeListener: false,
 		verboseMemoryLeak: false,
 		ignoreErrors: false,
-	});
+});
 
+
+
+class Product {
+
+	key = "";
+	type = "";
 	Bid = 0; //1
 	Ask = 0; //2
 	last = 0; //3
@@ -72,156 +73,70 @@ class Product {
 		let self = this;
 		_(data).forEach(function (v, k) {
 			switch (k) {
-				case "1":
-					self.Bid = v;
-					break;
-				case "2":
-					self.Ask = v;
-					break;
-				case "3":
-					self.LastPrice = v;
-					break;
-				case "4":
-					self.BidSize = v;
-					break;
-				case "5":
-					self.AskSize = v;
-					break;
-				case "6":
-					self.AskID = v;
-					break;
-				case "7":
-					self.BidID = v;
-					break;
-				case "8":
-					self.TotalVolume = v;
-					break;
-				case "9":
-					self.LastSize = v;
-					break;
-				case "10":
-					self.TradeTime = v;
-					break;
-				case "11":
-					self.QuoteTime = v;
-					break;
-				case "12":
-					self.High = v;
-					break;
-				case "13":
-					self.Low = v;
-					break;
-				case "14":
-					self.BidTick = v;
-					break;
-				case "15":
-					self.Close = v;
-					break;
-				case "16":
-					self.ExchangeID = v;
-					break;
-				case "17":
-					self.Marginable = v;
-					break;
-				case "18":
-					self.Shortable = v;
-					break;
-				case "22":
-					self.Volatility = v;
-					break;
-				case "25":
-					self.Description = v;
-					break;
-				case "26":
-					self.LastID = v;
-					break;
-				case "27":
-					self.Digits = v;
-					break;
-				case "28":
-					self.Open = v;
-					break;
-				case "29":
-					self.NetChange = v;
-					break;
-				case "30":
-					self.YearHigh = v;
-					break;
-				case "31":
-					self.YearLow = v;
-					break;
-				case "32":
-					self.PERatio = v;
-					break;
-				case "33":
-					self.DividendAmount = v;
-					break;
-				case "39":
-					self.ExchangeName = v;
-					break;
-				case "41":
-					self.RegularMarketQuote = v;
-					break;
-				case "42":
-					self.RegularMarketTrade = v;
-					break;
-				case "43":
-					self.RegularMarketLastPrice = v;
-					break;
-				case "44":
-					self.RegularMarketLastSize = v;
-					break;
-				case "45":
-					self.RegularMarketTradeTime = v;
-					break;
-				case "46":
-					self.RegularMarketTradeDay = v;
-					break;
-				case "47":
-					self.RegularMarketNetChange = v;
-					break;
-				case "48":
-					self.SecurityStatus = v;
-					break;
-				case "49":
-					self.Mark = v;
-					break;
-				case "50":
-					self.QuoteTime = v;
-					break;
-				case "51":
-					self.TradeTime = v;
-					break;
-				case "52":
-					self.RegularMarketTradeTime = v;
-					break;
+				case "1": self.Bid = v; break;
+				case "2": self.Ask = v; break;
+				case "3": self.LastPrice = v; break;
+				case "4": self.BidSize = v; break;
+				case "5": self.AskSize = v; break;
+				case "6": self.AskID = v; break;
+				case "7": self.BidID = v; break;
+				case "8": self.TotalVolume = v; break;
+				case "9": self.LastSize = v; break;
+				case "10": self.TradeTime = v; break;
+				case "11": self.QuoteTime = v; break;
+				case "12": self.High = v; break;
+				case "13": self.Low = v; break;
+				case "14": self.BidTick = v; break;
+				case "15": self.Close = v; break;
+				case "16": self.ExchangeID = v; break;
+				case "17": self.Marginable = v; break;
+				case "18": self.Shortable = v; break;
+				case "22": self.Volatility = v; break;
+				case "25": self.Description = v; break;
+				case "26": self.LastID = v; break;
+				case "27": self.Digits = v; break;
+				case "28": self.Open = v; break;
+				case "29": self.NetChange = v; break;
+				case "30": self.YearHigh = v; break;
+				case "31": self.YearLow = v; break;
+				case "32": self.PERatio = v; break;
+				case "33": self.DividendAmount = v; break;
+				case "39": self.ExchangeName = v; break;
+				case "41": self.RegularMarketQuote = v; break;
+				case "42": self.RegularMarketTrade = v; break;
+				case "43": self.RegularMarketLastPrice = v; break;
+				case "44": self.RegularMarketLastSize = v; break;
+				case "45": self.RegularMarketTradeTime = v; break;
+				case "46": self.RegularMarketTradeDay = v; break;
+				case "47": self.RegularMarketNetChange = v; break;
+				case "48": self.SecurityStatus = v; break;
+				case "49": self.Mark = v; break;
+				case "50": self.QuoteTime = v; break;
+				case "51": self.TradeTime = v; break;
+				case "52": self.RegularMarketTradeTime = v; break;
 			}
 		});
-		this.event.emit("quote", data)
+		event.emit("quote", data)
 	};
 
+	tdaFuturesQuote = (data) => {
+		return
+	}
 	tdaTimesale = (data) => {
 		let self = this;
 		_(data).forEach(function (v, k) {
 			switch (k) {
-				case "1":
-					self.TradeTime = v;
-					break;
-				case "2":
-					self.LastPrice = v;
-					break;
-				case "3":
-					self.LastSize = v;
-					break;
+				case "1": self.TradeTime = v; break;
+				case "2": self.LastPrice = v; break;
+				case "3": self.LastSize = v; break;
 			}
 		});
-		this.event.emit("timeSale", data);
-
+		event.emit("timeSale", data);
 	};
 
 	getChartHistory = () => {
 		if (this.type != "future") {
-			tda.priceHistory(this.key)
+			tda.getData.priceHistory(this.key)
 				.then((data) => {
 					if (data.candles.length > 0) {
 						this.todo.done = true;
@@ -237,7 +152,7 @@ class Product {
 				});
 		}
 		else if (this.type == "future") {
-			tda.socket.sendServiceMsg("getFutureChart",(this.key))
+			tda.socket.sendServiceMessage("CHART_HISTORY_FUTURES", this.key);
 		}
 	
 	}
@@ -250,7 +165,7 @@ class Product {
 		} else {
 			mysql.query(`insert into \`CHART_FUTURES\` (\`key\`,\`timestamp\`,o,h,l,c,v) VALUES ('${this.key}', ${data.timestamp}, ${data.o}, ${data.h}, ${data.l}, ${data.c}, ${data.v}) ON DUPLICATE KEY UPDATE  o = ${data.o}, h = ${data.h}, l = ${data.l}, c = ${data.c}, v = ${data.v}`);
 		}
-		if (emit) this.event.emit("chart", data);
+		if (emit) event.emit("chart", data);
 	};
 }
 	
@@ -271,5 +186,6 @@ function isType(key) {
 
 
 module.exports = {
-	Product : Product
+	Product: Product,
+	event : event
 }
