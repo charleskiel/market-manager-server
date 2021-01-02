@@ -1,6 +1,6 @@
 const fs = require('fs');
 const Alpaca = require('@alpacahq/alpaca-trade-api')
-const auth = JSON.parse(fs.readFileSync("./alpaca.json", (err) => { if (err) console.error(err); }))
+const auth = JSON.parse(fs.readFileSync("../auth/alpaca.json", (err) => { if (err) console.error(err); }))
 
 
 const alpaca = new Alpaca(auth)

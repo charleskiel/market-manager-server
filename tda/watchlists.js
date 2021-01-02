@@ -4,7 +4,8 @@ const auth = require("./auth");
 const mysql = require("../mysql.js");
 const tdaSocket = require("./tdaSocket");
 const getdata = require("./getdata").getData;
-const monitor = require("./monitor");
+//const monitor = require("../monitor").monitor;
+const Product = require("../productClass").Product
 
 var watchlists = {};
 
@@ -12,9 +13,11 @@ module.exports.allWatchlistKeys = (lists) => {
 	let list = []
 	lists.map((_list) => {
 		_list.watchlistItems.map((_item) => {
-			list.push(_item);
+			list.push(new Product(_item.instrument.symbol));
 		});
 	});
+	tdaSocket.event.emit("monitorAddItems", list)
+	//monitor. add(list)
 	return list
 }
 
@@ -24,8 +27,8 @@ module.exports.fetchWatchlists = () => {
 			console.log(moment(Date.now()).format(), `: Fetched  watchlists`)
 			watchlists = data;
 			transferWatchlists(data).then( () => {
-				monitor.add(module.exports.allWatchlistKeys(data));
-				console.log(`${_.keys(monitor.equities()).length} equities, ${_.keys(monitor.futures()).length} futures, and ${_.keys(monitor.indexes()).length} indexes in ${data.length} Watchlists`);
+				module.exports.allWatchlistKeys(data);
+				//console.log(`${_.keys(monitor.equities()).length} equities, ${_.keys(monitor.futures()).length} futures, and ${_.keys(monitor.indexes()).length} indexes in ${data.length} Watchlists`);
 				result(data);
 
 			})
@@ -54,7 +57,7 @@ function transferWatchlists(lists){
 			result(p)
 		})
 		.catch(() => {
-			error(`Problem updating watchlist ${list.name}`)
+			error(`Problem updating watchlist ${lists}`)
 		})
 }	)
 }
@@ -71,7 +74,7 @@ module.exports.loadWatchlists = () => {
 
  			
 		}).then(() => {
-			monitor.add(module.exports.allWatchlistKeys(results))
+			module.exports.allWatchlistKeys(results)
 
 			result(results)
 		})

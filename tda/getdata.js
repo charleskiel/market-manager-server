@@ -58,7 +58,7 @@ module.exports.getData = (endpoint) => {
         };
 
         request(options, function (error, response, body) {
-            //console.log(response)
+            console.log(response)
             if (response && response.statusCode === 200) {
                 if (body != "") {
                     //console.log(moment(Date.now()).format() + body)

@@ -1,34 +1,50 @@
-
-var moment = require('moment');
-const tda =  require('./tda/tda.js')
-//const tda =  require('./datacollector.js')
-//var alpaca = require('./alpaca/alpaca.js')
-//var coinbase = require('./coinbase/coinbase')
-//var reddit = require('./reddit/reddit')
-
-//alpaca.refresh()
-const fetch = require('node-fetch');
-const app = require('express')();
+const moment = require('moment');
+const express = require('express');
+const app = require("express")();
 const https = require('https');
+var serveStatic = require('serve-static')
+
+
 const fs = require('fs');
-const bodyParser = require('body-parser');
+const _ = require('lodash');
+
+
+const tda = require('./tda/tda.js')
+const tradier = require('./tradier/tradier.js')
+//const alpaca = require('./alpaca/alpaca.js')
+const coinbase = require('./coinbase/coinbase')
+
+const productClass = require("./productClass.js").Product;
+
+const monitor = require("./monitor.js").monitor;
+//const mysql = require("./mysql.js");
+//const reddit = require('./reddit/reddit')
+//const fetch = require('node-fetch');
+
+monitor.load()
+
+tda.load()
+//tradier.load()
+//alpaca.load()
+//coinbase.load()
+
+
+
 app.use(function(req, res, next) {
      res.header("Access-Control-Allow-Origin", "*");
      res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
      next();
 });
-//app.use(bodyParser.urlencoded({ extended: true }));
-tda.load()
-//alpaca.collectData()
-var _ = require('lodash');
 
+app.use('/' ,express.static('../' ) );
+
+//app.use("/", express.static(path.join(__dirname, '/var/www/charelskiel.dev/')));
 
 //GET home route
-app.get('/accountinfo', (req, res,next) => {
+app.get('/accountinfo', (req, res) => {
      let access_token = JSON.parse(fs.readFileSync("./auth/access_token.json", (err) => { if (err) console.error(err); }))
      let refresh_token = JSON.parse(fs.readFileSync("./auth/refresh_token.json", (err) => { if (err) console.error(err); }))
      let account_info = JSON.parse(fs.readFileSync("./auth/account_info.json", (err) => { if (err) console.error(err); }))
-     //JSON.parse(fs.readFileSync("./auth/account_info.json", (err) => { if (err) console.error(err); }))
      res.send(JSON.stringify({
           test: "OK",
           refresh_token: refresh_token,
@@ -37,12 +53,11 @@ app.get('/accountinfo', (req, res,next) => {
           codeLastUpdated: moment(access_token.updated_on).fromNow(),
           encoded_code: encodeURIComponent(refresh_token.code),
           principals: JSON.parse(fs.readFileSync("./auth/user_principals.json", (err) => { if (err) console.error(err); }))
-
      }, undefined, 4));
 });
 
 //GET home route
-app.get('/tda_callback', (req, res,next) => {
+app.get('/tda_callback', (req, res) => {
      let j = JSON.parse(fs.readFileSync("./auth/refresh_token.json", (err) => { if (err) console.error(err); }))
      j.code = decodeURIComponent(req.query.code)
      j.updated_on = Date.now()
@@ -120,18 +135,15 @@ app.get('/reddit', (req, res) => {
      res.send("Hello Reddit.")
 });
 
-
-
-// app.get('/mm', (req, res) => {
-//      console.log(req.path)
-//      console.log(req.query)
-//      res.sendFile(path.join(__dirname, 'react-mm/build/index.html'))
-// });
-
-
-
 https.createServer({
      key: fs.readFileSync('/etc/letsencrypt/live/charleskiel.dev/privkey.pem', 'utf8'),
      cert: fs.readFileSync('/etc/letsencrypt/live/charleskiel.dev/cert.pem', 'utf8')
-}, app)
-     .listen(8000);
+     }, app)
+     .listen(8000)
+     
+
+setInterval(function(){
+     tda.status()
+     //tradier.status()
+     //alpaca.status()
+}, 10000);
