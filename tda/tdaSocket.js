@@ -197,13 +197,11 @@ module.exports.load = () => {
 
 	ws.onerror = function (error) {
 		console.log(error);
-		socketStatus("ERROR")
+		socketStatus("error", error)
 	};
 
 	ws.onclose = function (error) {
-		socketStatus("disconnected")
-		console.log(moment(Date.now()).format() + ": echo-protocol Connection Closed");
-		console.log(error);
+		socketStatus("close", error)
 		//debugger
 		setTimeout(module.exports.load, 5000)
 	};

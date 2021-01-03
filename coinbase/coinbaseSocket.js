@@ -27,17 +27,12 @@ module.exports.load = (auth) => {
 		socketStatus("open");
 		console.log(moment(Date.now()).format() + ": Connection opened");
 
-		watchlist = ["ETH-USD","LTC-USD","XRP-USD","ETC-USD","BCH-USD"]
+		watchlist = ["BTC-USD","ETH-USD","LTC-USD","ETC-USD","BCH-USD","XLM-USD"]
 
 		ws.send(JSON.stringify({
 			type: "subscribe",
 			product_ids: watchlist,
-			channels: [
-				"level2",
-				"full",
-				"heartbeat",
-				"ticker"
-			]
+			channels: ["ticker","full","heartbeat"]
 		}))
 
 	};
@@ -47,38 +42,20 @@ module.exports.load = (auth) => {
 		module.exports.event.emit("dataCount", ["socketMessageCountReceived", 1]);
 		module.exports.event.emit("dataCount", ["socketDataReceived", data.data.length * 2]);
 
-		//console.log(JSON.parse(data.data))
-		// if (message.data.charAt(0) === "{" && message.data.charAt(message.data.length - 1) === "}") {
-		// 	packetPiece = "";
-		// } else if (
-		// 	(message.data.charAt(0) === "{" && message.data.charAt(message.data.length - 1) !== "}") ||
-		// 	(message.data.charAt(0) !== "{" && message.data.charAt(message.data.length - 1) !== "}")
-		// ) {
-		// 	packetPiece += message.data;
-		// } else if (message.data.charAt(0) !== "{" && message.data.charAt(message.data.length - 1) === "}") {
-		// 	message.data = packetPiece + message.data;
-		// }
+		data = JSON.parse(data.data)
+		module.exports.event.emit("dataCount", [data.type, 1]);
+		module.exports.event.emit("data", data);
 	};
 
 	ws.onerror = function (error) {
 		console.log(error);
-		socketStatus("ERROR");
+		socketStatus("error");
 	};
 
 	ws.onclose = function (error) {
-		socketStatus("disconnected");
-		console.log(moment(Date.now()).format() + ": echo-protocol Connection Closed");
+		socketStatus("close", error);
+		console.log(moment(Date.now()).format() + ": Coinbase Connection Closed");
 		console.log(error);
-		//debugger
 		setTimeout(module.exports.load, 10000);
 	};
-};
-
-module.exports.sendServiceMsg = (_type, _keys) => {
-	//console.log(_type);
-	console.log(_type, [..._keys].toString());
-	switch (_type) {
-		case "equities":
-
-	}
 };

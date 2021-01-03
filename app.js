@@ -1,7 +1,7 @@
 const moment = require('moment');
 const express = require('express');
 const app = require("express")();
-const https = require('https');
+const http = require('http');
 var serveStatic = require('serve-static')
 
 
@@ -36,7 +36,7 @@ app.use(function(req, res, next) {
      next();
 });
 
-app.use('/' ,express.static('../' ) );
+//app.use('/' ,express.static('../' ) );
 
 //app.use("/", express.static(path.join(__dirname, '/var/www/charelskiel.dev/')));
 
@@ -139,10 +139,12 @@ app.get('/mm/data', (req, res) => {
      res.send(JSON.stringify(monitor.getDataStats(), undefined, 4));
 });
 
-https.createServer({
-     key: fs.readFileSync('/etc/letsencrypt/live/charleskiel.dev/privkey.pem', 'utf8'),
-     cert: fs.readFileSync('/etc/letsencrypt/live/charleskiel.dev/cert.pem', 'utf8')
-     }, app)
+http.createServer(
+     // {
+     // key: fs.readFileSync('/etc/letsencrypt/live/charleskiel.dev/privkey.pem', 'utf8'),
+     // cert: fs.readFileSync('/etc/letsencrypt/live/charleskiel.dev/cert.pem', 'utf8')
+     // }
+      app)
      .listen(8000)
      
 

@@ -9,11 +9,15 @@ const coinbase = require('./coinbase/coinbase.js');
 const mysql = require('./mysql.js');
 const _ = require("lodash");
 const Product = require("./productClass.js").Product;
+const Crypto = require("./cryptoClass.js").Crypto;
 const productEvent = require("./productClass.js").event;
 const filesize = require('filesize')
 var EventEmitter2 = require("eventemitter2");
 const clientSocket = require('./clientSocket.js');
 const { count } = require('console');
+const { json } = require('body-parser');
+const cryptoClass = require('./cryptoClass.js');
+const productClass = require('./productClass.js');
 
 module.exports.event = new EventEmitter2({
 	wildcard: true,
@@ -38,7 +42,8 @@ todo = []
 // });
 
 
-products = []
+products = productClass.products
+cryptos = cryptoClass.cryptos
 actives = {
 	ACTIVES_NASDAQ: {},
 	ACTIVES_NYSE: {},
@@ -262,7 +267,7 @@ setTimeout(function () {
 
 
 function getSystemStatus(){
-	systemStatus = {
+	return {
 		// os: {
 		// 	type: os.type,
 		// 	endiannes: os.endianness,
@@ -272,39 +277,45 @@ function getSystemStatus(){
 		// 	release: os.release(),
 		// 	totalmem: os.totalmem(),
 		// },
-		system: {
+		
 			totalmem: filesize(os.totalmem()),
 			freemem: filesize(os.freemem()),
 			uptime: os.uptime(),
+			uptime: moment().subtract(os.uptime(), 'seconds').fromNow(),
 			loadavg: os.loadavg(),
-		}
+		
 	}
-	return systemStatus
 }
 
-function countData(provider, type, count = 0) {
+function countData(provider, type, data = 0) {
 	if (type == "socketStatus") {
-		dataStats[provider]["socketStatus"] = count
+		dataStats[provider]["socketStatus"] = data
+		if (data == "disconnected") dataStats[provider]["socketDisconnects"] += 1
+		dataStats[provider]["socketConnectionTimeStamp"] = Date.now()
 		dataStats[provider]["socketConnectionTime"] = Date.now()
 	} else if (type.includes("Data")) {
-		dataStats[provider][type] += count;
+		dataStats[provider][type] += data;
 		dataStats[provider][type + "Size"] = filesize(dataStats[provider][type]);
+	} else {
+		dataStats[provider][type] += data;
+
 	}
 
-	if (type == "socketDataSent") dataStats["global"][type] += (count / 1048576);
+	if (type == "socketDataSent") dataStats["global"][type] += (data / 1048576);
 	if (type == "socketDataReceived") {
-		dataStats["global"][type] += count
+		dataStats["global"][type] += data
 		dataStats["global"][type + "size"] = filesize(dataStats["global"][type]);
 	}
 }
 
-module.exports.getDataStats = () => { return dataStats }
 
 tda.socket.event.on("monitorAddItems", module.exports.addProducts);
-tda.socket.event.on("tdaChartData", (data) => {products[data.key].addChartData(data);countData("tda","tdaChartData",1)})
-tda.socket.event.on("tdaQuote", (data) => {products[data.key].tdaQuote(data);countData("tda","tdaQuote",1)})
-tda.socket.event.on("tdaTimesale", (data) => {products[data.key].tdaTimesale(data);countData("tda","tdaTimesale",1)})
-tda.socket.event.on("tdaFuturesQuote", (data) => {products[data.key].tdaFuturesQuote(data);countData("tda","tdaFuturesQuote",1)})
+tda.socket.event.on("CHART_EQUITY", (data) => {products[data.key].addChartData(data); countData("tda","CHART_EQUITY",1)})
+tda.socket.event.on("CHART_FUTURES", (data) => {products[data.key].addChartData(data); countData("tda","CHART_FUTURES",1)})
+tda.socket.event.on("QUOTE", (data) => {products[data.key].tdaQuote(data); countData("tda","QUOTE",1)})
+tda.socket.event.on("IMESALE_EQUITY", (data) => {products[data.key].tdaTimesale(data); countData("tda","IMESALE_EQUITY",1)})
+tda.socket.event.on("IMESALE_FUTURES", (data) => {products[data.key].tdaTimesale(data); countData("tda","IMESALE_FUTURES",1)})
+tda.socket.event.on("LEVELONE_FUTURES", (data) => {products[data.key].tdaFuturesQuote(data); countData("tda","LEVELONE_FUTURES",1)})
 tda.socket.event.on("ACTIVES_NASDAQ", module.exports.addActives)
 tda.socket.event.on("ACTIVES_NYSE", module.exports.addActives)
 tda.socket.event.on("ACTIVES_OTCBB", module.exports.addActives)
@@ -323,13 +334,22 @@ alpaca.socket.event.on("dataCount", (data) => countData("alpaca", data[0], data[
 
 coinbase.socket.event.on("socketStatus", (data) => countData("coinbase", "socketStatus", data))
 coinbase.socket.event.on("dataCount", (data) => countData("coinbase", data[0], data[1]))
+coinbase.socket.event.on("data", (data) => cryptoClass.cryptoTick(data))
 //coinbase.getData.event.on("dataCount", (data) => countData("coinbase", data[0], data[1]))
 function getDataStats() { return dataStats }
 
+module.exports.getDataStats = () => {
+	data = dataStats
+	
+	_.keys(data).map(k => data[k]["socketConnectionTime"] = moment().subtract((Date.now() - data[k]["socketConnectionTimeStamp"]) / 1000, 'seconds').fromNow())
+	data.systemStatus = getSystemStatus()
+
+	return data
+}
 dataStats = {
 	tda: {
 		socketStatus: "",
-		socketConnectionTime: 0,
+		socketConnectionTimeStamp: 0,
 		socketDataSent: 0,
 		socketDataReceived: 0,
 		socketDataBps: [],
@@ -339,10 +359,13 @@ dataStats = {
 		socketMessageCountReceived: 0,
 		httpCount: 0,
 		httpDataReceived: 0,
-		tdaChartData: 0,
-		tdaQuote: 0,
-		tdaTimesale: 0,
-		tdaFuturesQuote: 0,
+		QUOTE: 0,
+		CHART_FUTURES: 0,
+		CHART_HISTOR_FUTURES: 0,
+		LEVELONE_FUTURES: 0,
+		TIMESALE_EQUITY: 0,
+		TIMESALE_FUTURES: 0,
+		CHART_EQUITY: 0,
 	},
 	alpaca: {
 		socketStatus: "",
@@ -376,6 +399,13 @@ dataStats = {
 		socketMessageCountReceived: 0,
 		httpCount: 0,
 		httpDataReceived: 0,
+
+		l2update : 0,
+		done : 0,
+		subscriptions : 0,
+		snapshot : 0,
+		ticker : 0,
+		open : 0,
 	},
 	global: {
 		socketDataSent: 0,
@@ -388,7 +418,6 @@ dataStats = {
 		httpCount: 0,
 		httpDataReceived: 0,
 	},
-	systemStatus: getSystemStatus(),
 };
 
 //productEvent.on("clientActivity.*", clientActivity)

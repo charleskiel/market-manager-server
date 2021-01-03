@@ -14,7 +14,7 @@ let event = new EventEmitter2({
 });
 
 
-
+products = []
 class Product {
 
 	key = "";
@@ -187,5 +187,6 @@ function isType(key) {
 
 module.exports = {
 	Product: Product,
+	products: products,
 	event : event
 }

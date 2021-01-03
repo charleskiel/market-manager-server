@@ -1,3 +1,5 @@
+const fs = require('fs');
+
 const WebSocket = require("websocket").w3cwebsocket;
 //var auth = require("./auth");
 //var monitor = require("../monitor");
@@ -21,7 +23,9 @@ function socketStatus(_status) {
 	module.exports.event.emit("socketStatus", _status);
 }
 
-module.exports.load = (auth) => {
+module.exports.load = () => {
+	let auth = JSON.parse(fs.readFileSync("./auth/alpaca.json", (err) => { if (err) console.error(err); }))
+
 	ws = new WebSocket("wss://data.alpaca.markets/stream");
 	ws.onopen = function () {
 		socketStatus("open");
@@ -99,11 +103,11 @@ module.exports.load = (auth) => {
 
 	ws.onerror = function (error) {
 		console.log(error);
-		socketStatus("ERROR");
+		socketStatus("error");
 	};
 
 	ws.onclose = function (error) {
-		socketStatus("disconnected");
+		socketStatus("close", error);
 		console.log(moment(Date.now()).format() + ": echo-protocol Connection Closed");
 		console.log(error);
 		//debugger

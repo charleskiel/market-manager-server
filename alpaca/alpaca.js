@@ -1,11 +1,11 @@
 const fs = require('fs');
 //const Alpaca = require('@alpacahq/alpaca-trade-api')
-let auth = JSON.parse(fs.readFileSync("./auth/alpaca.json", (err) => { if (err) console.error(err); }))
+//let auth = JSON.parse(fs.readFileSync("./auth/alpaca.json", (err) => { if (err) console.error(err); }))
 const socket = require('./alpacaSocket')
 //const alpacaAPI = new Alpaca()
    
 module.exports.socket = socket
-socket.load(auth)
+socket.load()
 const request = require('request');
 const moment = require('moment');
 

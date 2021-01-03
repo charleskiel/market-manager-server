@@ -72,11 +72,11 @@ module.exports.load = () => {
 
 	ws.onerror = function (error) {
 		console.log(error);
-		socketStatus("ERROR");
+		socketStatus("error");
 	};
 
 	ws.onclose = function (error) {
-		socketStatus("disconnected");
+		socketStatus("close", error);
 		console.log(moment(Date.now()).format() + ": echo-protocol Connection Closed");
 		console.log(error);
 		//debugger

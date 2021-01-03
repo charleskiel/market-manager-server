@@ -6,10 +6,12 @@ var clientConnections = Object.create(null); // {}
 
 const https = require("https");
 var WebSocketServer = require('ws').Server;
-var httpsServer = https.createServer({
-    key: fs.readFileSync('/etc/letsencrypt/live/charleskiel.dev/privkey.pem', 'utf8'),
-    cert: fs.readFileSync('/etc/letsencrypt/live/charleskiel.dev/cert.pem', 'utf8')
-}).listen(7999);
+var httpsServer = https.createServer(
+    // {
+    // key: fs.readFileSync('/etc/letsencrypt/live/charleskiel.dev/privkey.pem', 'utf8'),
+    // cert: fs.readFileSync('/etc/letsencrypt/live/charleskiel.dev/cert.pem', 'utf8')
+    // }
+).listen(7999);
 var socketService = new WebSocketServer({server: httpsServer});
 
 

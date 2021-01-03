@@ -15,17 +15,17 @@ module.exports.tdaData = (msg) => {
 			switch (msg.service) {
 				case "CHART_EQUITY":
 					msg.content.map((_content) => {
-						socket.event.emit("tdaChartData", {dataType: msg.service, key: _content.key, timestamp: _content["7"], h: _content["2"], l: _content["3"], o: _content["1"], c: _content["4"], v: _content["5"] });
+						socket.event.emit("CHART_EQUITY", {dataType: msg.service, key: _content.key, timestamp: _content["7"], h: _content["2"], l: _content["3"], o: _content["1"], c: _content["4"], v: _content["5"] });
 					});
 					break;
 				case "CHART_FUTURES":
 					msg.content.map((_content) => {
-						socket.event.emit("tdaChartData", {dataType: msg.service, key: _content.key, timestamp: _content["1"], h: _content["3"], l: _content["4"], o: _content["2"], c: _content["5"], v: _content["6"] });
+						socket.event.emit("CHART_FUTURES", {dataType: msg.service, key: _content.key, timestamp: _content["1"], h: _content["3"], l: _content["4"], o: _content["2"], c: _content["5"], v: _content["6"] });
 					});
 					break;
 				case "CHART_HISTORY_FUTURES":
 					msg.content.map((_content) => {
-						socket.event.emit("tdaChartData", {dataType: msg.service, key: _content.key, timestamp: _content["1"], h: _content["3"], l: _content["4"], o: _content["2"], c: _content["5"], v: _content["6"] });
+						socket.event.emit("CHART_HISTORY_FUTURES", {dataType: msg.service, key: _content.key, timestamp: _content["1"], h: _content["3"], l: _content["4"], o: _content["2"], c: _content["5"], v: _content["6"] });
 					});
 					break;
 				case "NEWS_HEADLINE":
@@ -39,14 +39,16 @@ module.exports.tdaData = (msg) => {
 					//dbWrite(msg);
 					break;
 				case "QUOTE":
-					msg.content.map((_content) => {socket.event.emit("tdaQuote", _content)});
+					msg.content.map((_content) => {socket.event.emit(msg.service, _content)});
 					break;
 				case "LEVELONE_FUTURES":
-					msg.content.map((_content) => {socket.event.emit('tdaFuturesQuote', _content)});
+					msg.content.map((_content) => {socket.event.emit(msg.service, _content)});
 					break;
 				case "TIMESALE_FUTURES":
+					msg.content.map((_content) => {socket.event.emit(msg.service, _content)});
+					break;
 				case "TIMESALE_EQUITY":
-					msg.content.map((_content) => {socket.event.emit("tdaTimesale", _content)});
+					msg.content.map((_content) => {socket.event.emit(msg.service, _content)});
 					break;
 				case "SERVICE":
 					console.log(msg.service + ": " + msg.content);
