@@ -1,3 +1,4 @@
+const mysql = require("../mysql.js");
 const fs = require('fs');
 const moment = require("moment");
 const request = require("request");
@@ -48,6 +49,7 @@ function validateAccessToken() {
 
 			if (Date.now() >= access_token.created_on + access_token.expires_in * 1000) {
 				console.log(moment(Date.now()).format() + ": Token appears to be expired... Refreshing");
+				mysql.log('tda', 'accessToken', 'info', `Token appears to be expired... Refreshing`)
 				refreshAccessToken()
 					.then(response => ok(response ))
 					.catch((error) => {
@@ -78,13 +80,14 @@ function validateprincipals() {
 			//console.log(moment(Date.now()).format() + moment(Date.now()).diff(user_principals.streamerInfo.tokenTimestamp, "seconds"));
 
 			if (Date.now() >= moment(user_principals.tokenExpirationTime).unix() * 1000) {
+				mysql.log('tda', 'principals', 'info', `Principals appears to be expired... Refreshing`)
 				// console.log(user_principals.streamerInfo.tokenTimestamp);
 				// console.log(moment(user_principals.streamerInfo.tokenTimestamp).unix() * 1000);
 				// console.log(moment(user_principals.tokenExpirationTime).unix() * 1000);
 				// console.log(Date.now() > moment(user_principals.streamerInfo.tokenTimestamp).unix() * 1000);
 				// console.log(moment(Date.now()).format() + ": =================================================");
 				// console.log(moment(Date.now()).format() + ": Principals appears to be expired... Refreshing");
-				getData.getData("https://api.tdameritrade.com/v1/userprincipals?fields=streamerSubscriptionKeys%2CstreamerConnectionInfo%2Cpreferences%2CsurrogateIds")
+				getData.getData("https://api.tdameritrade.com/v1/userprincipals?fields=streamerSubscriptionKeys%2CstreamerConnectionInfo%2Cpreferences%2CsurrogateIds","userprincipals")
 					.then((data) => {
 						// 3. now that you have the access token, store it so it persists over multiple instances of the script.
 						console.log(data);
@@ -142,7 +145,8 @@ function refreshAccessToken() {
 
 			//console.log(moment(Date.now()).format(), options.form);
 			request(options, function (error, response, body) {
-				if (error) console.log(error, response,body);
+				if (error) console.log(error, response, body);
+				getData.event.emit("getdata", ["refreshAccessToken",{}, body.length]);
 				let data = JSON.parse(body);
 				if (data.error == "Invalid ApiKey") {
 					debugger;

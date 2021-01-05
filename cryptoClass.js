@@ -35,10 +35,8 @@ function cryptoTick(data) {
 		case "done":   //l2
 		case "cancelled":   //l2
 		case "match":   //l2
+		case "change":   //l2
 			cryptos[data.product_id].l2(data)
-			
-			break;
-		case "done":
 			break;
 		case "subscriptions":
 			break;
@@ -218,19 +216,19 @@ class Crypto {
 
 		data.time = Number(moment(data.time).format('x'))
 		if (this.l2Bars1s.length == 0) {
-			this.l2Bars1s.push({timestamp: Number(moment(data.time).startOf("second").format('x')),buy: {"open": 0,"canceled": 0,"match": 0,"changed": 0,"received" : 0, "done" : 0},sell: {"open": 0,"canceled": 0,"match": 0,"changed": 0,"received" : 0, "done" : 0}})
+			this.l2Bars1s.push({timestamp: Number(moment(data.time).startOf("second").format('x')),buy: {"open": 0,"canceled": 0,"match": 0,"changed": 0,"Rx" : 0, "done" : 0},sell: {"open": 0,"canceled": 0,"match": 0,"changed": 0,"Rx" : 0, "done" : 0}})
 		}
 		if (this.l2Bars1m.length == 0) {
-			this.l2Bars1m.push({timestamp: Number(moment(data.time).startOf("minute").format('x')),buy: {"open": 0,"canceled": 0,"match": 0,"changed": 0,"received" : 0, "done" : 0},sell: {"open": 0,"canceled": 0,"match": 0,"changed": 0,"received" : 0, "done" : 0}})
+			this.l2Bars1m.push({timestamp: Number(moment(data.time).startOf("minute").format('x')),buy: {"open": 0,"canceled": 0,"match": 0,"changed": 0,"Rx" : 0, "done" : 0},sell: {"open": 0,"canceled": 0,"match": 0,"changed": 0,"Rx" : 0, "done" : 0}})
 		}
 		
 		if (this.l2Bars1s[this.l2Bars1s.length - 1].timestamp + 1000 < data.time) {
-			this.l2Bars1s.push({timestamp: Number(moment(data.time).startOf("second").format('x')) ,buy: {"open": 0,"canceled": 0,"match": 0,"changed": 0,"received" : 0, "done" : 0},sell: {"open": 0,"canceled": 0,"match": 0,"changed": 0,"received" : 0, "done" : 0}})
+			this.l2Bars1s.push({timestamp: Number(moment(data.time).startOf("second").format('x')) ,buy: {"open": 0,"canceled": 0,"match": 0,"changed": 0,"Rx" : 0, "done" : 0},sell: {"open": 0,"canceled": 0,"match": 0,"changed": 0,"Rx" : 0, "done" : 0}})
 		}
 		this.l2Bars1s[this.l2Bars1s.length - 1][data.side][data.type] += 1
 		
 		if (this.l2Bars1m[this.l2Bars1m.length - 1].timestamp + 60000 < data.time) {
-			this.l2Bars1m.push({timestamp: Number(moment(data.time).startOf("minute").format('x')) ,buy: {"open": 0,"canceled": 0,"match": 0,"changed": 0,"received" : 0, "done" : 0},sell: {"open": 0,"canceled": 0,"match": 0,"changed": 0,"received" : 0, "done" : 0}})
+			this.l2Bars1m.push({timestamp: Number(moment(data.time).startOf("minute").format('x')) ,buy: {"open": 0,"canceled": 0,"match": 0,"changed": 0,"Rx" : 0, "done" : 0},sell: {"open": 0,"canceled": 0,"match": 0,"changed": 0,"Rx" : 0, "done" : 0}})
 		}
 		this.l2Bars1m[this.l2Bars1m.length - 1][data.side][data.type] += 1
 

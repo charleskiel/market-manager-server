@@ -1,12 +1,14 @@
 const WebSocket = require("websocket").w3cwebsocket;
 //var auth = require("./auth");
-//var monitor = require("../monitor");
 var ws = WebSocket;
 const moment = require("moment");
-//const getData = require("./getData");
 
 var EventEmitter2 = require("eventemitter2");
+var SocketData = require("../socketDataClass").SocketData;
 
+let socketData = new SocketData("coinbase")
+module.exports.socketData = socketData
+let _socketStatus = "idle"
 module.exports.event = new EventEmitter2({
 	wildcard: true,
 	delimiter: ".",
@@ -16,9 +18,14 @@ module.exports.event = new EventEmitter2({
 	ignoreErrors: false,
 });
 
+function emit(type, data) {
+	module.exports.event.emit("data", data);
+	socketData.data(data.type, dataLength)
+}
+
 function socketStatus(_status) {
-	_socketStatus = _status;
-	module.exports.event.emit("socketStatus", _status);
+	socketData.setStatus(_status)
+	_socketStatus = _status
 }
 
 module.exports.load = (auth) => {
@@ -38,24 +45,21 @@ module.exports.load = (auth) => {
 	};
 
 	ws.onmessage = function (data) {
-		if (_socketStatus != "connected") socketStatus("connected");
-		module.exports.event.emit("dataCount", ["socketMessageCountReceived", 1]);
-		module.exports.event.emit("dataCount", ["socketDataReceived", data.data.length * 2]);
+		if (_socketStatus !== "connected") {
+			socketStatus("connected");
+		}
+		dataLength = data.data.length * 2;
 
 		data = JSON.parse(data.data)
-		module.exports.event.emit("dataCount", [data.type, 1]);
-		module.exports.event.emit("data", data);
+		emit(data.type, data)
 	};
 
 	ws.onerror = function (error) {
-		console.log(error);
-		socketStatus("error");
+		console.log(error); socketStatus("error");
 	};
 
 	ws.onclose = function (error) {
 		socketStatus("close", error);
-		console.log(moment(Date.now()).format() + ": Coinbase Connection Closed");
-		console.log(error);
-		setTimeout(module.exports.load, 10000);
+		setTimeout(module.exports.load, 3000);
 	};
 };

@@ -5,7 +5,8 @@ const moment = require("moment");
 let principals = JSON.parse(fs.readFileSync("./auth/tradier.json"));
 var EventEmitter2 = require("eventemitter2");
 
-module.exports.event = new EventEmitter2({
+
+let event = new EventEmitter2({
 	wildcard: true,
 	delimiter: ".",
 	newListener: false,
@@ -13,6 +14,7 @@ module.exports.event = new EventEmitter2({
 	verboseMemoryLeak: false,
 	ignoreErrors: false,
 });
+module.exports.event = event
 
 const endpoint = 'https://api.tradier.com/v1/'
 const headers = {
@@ -125,7 +127,7 @@ module.exports.getTimeSales = (symbol, interval, start, end) => {
 		getData('markets/timesales', qs).then((data) => {
 			
 			module.exports.event.emit("dataCount", ["httpCount", 1]);
-			module.exports.event.emit("dataCount", ["httpDataReceived", data.data.length * 2]);
+			module.exports.event.emit("dataCount", ["httpDataRx", data.data.length * 2]);
 			//console.log(data.series.data);
 			if (data.series.data) {result(data.series.data)} else {result([])}
 			//debugger
@@ -213,6 +215,7 @@ getData = (url,query, method = 'GET') => {
 				if(error) console.log(error) 
 				if (response && response.statusCode === 200) {
 					//console.log(moment(Date.now()).format() + body)
+					event.emit("getdata",[url,{},body.length])
 					let j = JSON.parse(body)
 					console.log(moment(Date.now()).format(),j);
 					lastFetchTime = Date.now()

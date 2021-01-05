@@ -3,7 +3,8 @@ const express = require('express');
 const app = require("express")();
 const http = require('http');
 var serveStatic = require('serve-static')
-
+const mysql = require('./mysql.js');
+mysql.init()
 
 const fs = require('fs');
 const _ = require('lodash');
@@ -11,7 +12,7 @@ const _ = require('lodash');
 
 const tda = require('./tda/tda.js')
 const tradier = require('./tradier/tradier.js')
-//const alpaca = require('./alpaca/alpaca.js')
+const alpaca = require('./alpaca/alpaca.js')
 const coinbase = require('./coinbase/coinbase')
 
 const productClass = require("./productClass.js").Product;
@@ -24,8 +25,8 @@ const monitor = require("./monitor.js")
 
 tda.load()
 tradier.load()
-//alpaca.load()
-//coinbase.load()
+alpaca.load()
+coinbase.load()
 
 monitor.load()
 

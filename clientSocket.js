@@ -23,7 +23,7 @@ socketService.on('connection', function connection(socket) {
     console.log(socket)
     socket.on('message', msg => {
         clientConnections[socket].message(JSON.parse(msg))
-        console.log(`Received messages from ${socket._socket.remoteAddress}`, msg)
+        console.log(`Rx messages from ${socket._socket.remoteAddress}`, msg)
     })
         
     socket.on('open', msg => {

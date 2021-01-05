@@ -1,13 +1,14 @@
 const fs = require('fs');
 
 const WebSocket = require("websocket").w3cwebsocket;
-//var auth = require("./auth");
-//var monitor = require("../monitor");
 var ws = WebSocket;
 const moment = require("moment");
 //const getData = require("./getData");
 
+var SocketData = require("../socketDataClass").SocketData;
+let socketData = new SocketData("alpaca")
 var EventEmitter2 = require("eventemitter2");
+module.exports.socketData = socketData
 
 module.exports.event = new EventEmitter2({
 	wildcard: true,
@@ -18,10 +19,14 @@ module.exports.event = new EventEmitter2({
 	ignoreErrors: false,
 });
 
-function socketStatus(_status) {
-	_socketStatus = _status;
-	module.exports.event.emit("socketStatus", _status);
+function emit(type, data, length) {
+	module.exports.event.emit("data", data);
+	socketData.data(type, length)
 }
+function socketStatus(_status) {
+	socketData.setStatus(_status)
+}
+
 
 module.exports.load = () => {
 	let auth = JSON.parse(fs.readFileSync("./auth/alpaca.json", (err) => { if (err) console.error(err); }))
@@ -42,14 +47,14 @@ module.exports.load = () => {
 	};
 
 	ws.onmessage = function (msg) {
-		module.exports.event.emit("dataCount", ["socketMessageCountReceived", 1]);
-		module.exports.event.emit("dataCount", ["socketDataReceived", JSON.stringify(msg.data.length) * 2]);
-		
-		console.log(msg.data)
+		module.exports.event.emit("dataCount", ["socketMessageCountRx", 1]);
+		module.exports.event.emit("dataCount", ["socketDataRx", JSON.stringify(msg.data.length) * 2]);
+		let dataLength = msg.data.length
+		msg = JSON.parse(msg.data) 
 		try {
-			console.log(msg)
+			//console.log(msg)
 			if (msg.stream) {
-				console.log(msg.stream)
+				//console.log(msg.stream)
 				switch (msg.stream) {
 					case "authorization":
 						console.log(msg.data)
@@ -67,22 +72,30 @@ module.exports.load = () => {
 							// });
 						} else if (msg.data.status == "unauthorized" && msg.data.action == "authenticate") {
 							console.log("Error authenticating")
+							socketStatus("error");
 						} else if (msg.data.status == "unauthorized" && msg.data.action == "listen") {
 							console.log("Awtaiting authentication");
+							socketStatus("open");
 						}
+						emit(msg.stream, msg, dataLength)
 						break;
 					case "listening":
 						console.log(msg.data.streams);
+						emit(msg.stream, msg, dataLength)
 						break;
 					case "trade_updates":
 						console.log(msg.data)
+						emit(msg.stream, msg, dataLength)
 						break;
-					case "":
+					default:
+						emit(msg.data.ev,msg,dataLength)
 						break;
 				}
 
 			}else {
-				console.log(msg)
+				//console.log(msg)
+				emit(msg.type, msg, dataLength)
+
 			}
 		} catch (error) {
 			console.log("\x1b[41m", error);

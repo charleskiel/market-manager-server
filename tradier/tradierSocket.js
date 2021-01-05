@@ -4,9 +4,12 @@ const WebSocket = require("websocket").w3cwebsocket;
 var ws = WebSocket;
 const moment = require("moment");
 const getData = require("./getData");
-
+var SocketData = require("../socketDataClass").SocketData;
+let socketData = new SocketData("tradier")
+let _socketStatus = "idle"
 var EventEmitter2 = require("eventemitter2");
 
+module.exports.socketData = socketData
 module.exports.event = new EventEmitter2({
 	wildcard: true,
 	delimiter: ".",
@@ -15,14 +18,17 @@ module.exports.event = new EventEmitter2({
 	verboseMemoryLeak: false,
 	ignoreErrors: false,
 });
-
+function emit(type, data, dataLength) {
+	module.exports.event.emit("data", data);
+	socketData.data(type, dataLength)
+}
 function socketStatus(_status) {
-	_socketStatus = _status;
-	module.exports.event.emit("socketStatus", _status);
+	socketData.setStatus(_status)
+	_socketStatus = _status
 }
 
+let session = {}
 module.exports.load = () => {
-	let session = {}
 	getData.getStreamingSession().then((result) => {
 		console.log(result);
 		session = result.stream
@@ -43,9 +49,10 @@ module.exports.load = () => {
 	};
 
 	ws.onmessage = function (data) {
-		if (_socketStatus != "connected") socketStatus("connected")
-		module.exports.event.emit("dataCount", ["socketMessageCountReceived", 1]);
-		module.exports.event.emit("dataCount", ["socketDataReceived", data.data.length * 2]);
+		if (_socketStatus !== "connected") socketStatus("connected")
+		let dataLength = data.data.length * 2
+		data = JSON.parse(data.data)
+		module.exports.event.emit(data.type, data, dataLength);
 
 		//console.log(JSON.parse(data.data))
 		// if (message.data.charAt(0) === "{" && message.data.charAt(message.data.length - 1) === "}") {

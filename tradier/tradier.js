@@ -5,11 +5,6 @@ const moment = require('moment');
 const WebSocket = require('websocket').w3cwebsocket;
 const mysql = require('../mysql.js');
 //const monitor = require('../monitor')
-//const account = require('./account')
-//const auth = require('./auth')
-//const watchlists = require('./watchlists')
-
-
 
 const getData = require("./getData");
 const socket = require('./tradierSocket.js');
@@ -17,11 +12,8 @@ const socket = require('./tradierSocket.js');
 module.exports.socket = socket
 module.exports.getData = getData
 
-
+getData.event.on("getData", (data) => socket.socketData.getData("http|" + data[0],data[1], data[2] ))
 //module.exports.chains = require("./getdata").chains
-
-
-//module.exports.accountData = account.accountData
 var partmsg = ""
 module.exports.load = function() { 
      // getData.getTimeSales("AMD", "1min", "2020-11-14 09:30", "2020-12-14 20:00")

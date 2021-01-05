@@ -15,7 +15,7 @@ module.exports.socket = socket;
 module.exports.account = account
 module.exports.status = account.status
 
-
+module.exports.getData.event.on("getData", (data) => socket.emit("http|" + data[0],data[1],data[2]))
 module.exports.aggregate = () => {
 	collect = false;
     if (moment().day() == 0 && moment().hour() - 7 < 16 ){
@@ -23,7 +23,7 @@ module.exports.aggregate = () => {
     } else if (moment().day() == 6) {
 		collect = true;
 	} else if (moment().day() < 0 && moment().day() > 5 && moment().hour() - 7 < 6 && moment().hour() - 7 > 16) {
-		collect == true;
+		collect = true;
 	}
 	return collect;
 };
@@ -62,48 +62,6 @@ module.exports.status = () => {
 }
 
 
-
-
-
-// var listener = socket.event.on("*", function (msg) {
-//     //console.log(msg)
-//     relayToClients(msg)
-    
-//     if (msg.content) {
-//         if (msg.content.code == 17) {
-// 			//console.log(`\x1b[35m ${msg.service} [${msg.code}] :: ${msg.content.msg}`);
-//         } else {
-//             msg.service = msg.service.toUpperCase()
-//             switch (msg.service) {
-//                 case "CHART_EQUITY":
-//                 case "CHART_FUTURES":
-//                 case "NEWS_HEADLINE":
-//                     dbWrite(msg);
-//                     //debugger;
-//                     break;
-//                 case "ACTIVES_NASDAQ":
-//                 case "ACTIVES_NYSE":
-//                 case "ACTIVES_OTCBB":
-//                 case "ACTIVES_OPTIONS":
-//                     dbWrite(msg);
-//                     break;
-//                 case "QUOTE":
-//                 case "LEVELONE_FUTURES":
-//                 case "TIMESALE_FUTURES":
-//                 case "TIMESALE_EQUITY":
-//                     break;
-//                 case "SERVICE":
-//                     console.log(msg.service + ": " + msg.content);
-//                     console.log(moment(Date.now()).format() + `: Default Message`, msg);
-//                     break;
-//                 default:
-//                     console.log(msg.service + ": " + msg.content);
-//                     console.log(moment(Date.now()).format() + `: Default Message`, msg);
-//                     break;
-//             }
-//         }
-//     }
-// })
 
 // function sendMsg(c){
 //     ws.send(JSON.stringify(c));

@@ -23,7 +23,7 @@ class Product {
 	Ask = 0; //2
 	last = 0; //3
 	BidSize = 0; //4
-	AskSize = 0; //5
+	AskSize = 0; //4
 	AskID = ""; //6
 	BidID = ""; //7
 	TotalVolume = 0; //8

@@ -1,12 +1,14 @@
 var WebSocket = require("websocket").w3cwebsocket;
 const auth = require("./auth")
-const socketData = require("./socketData").tdaData
+const doSocketData = require("./socketData").tdaData
 //const monitor = require("../monitor")
 var ws = WebSocket
 const moment = require("moment");
 const Product = require("../productClass").Product;
+var SocketData = require("../socketDataClass").SocketData;
 
 var EventEmitter2 = require("eventemitter2");
+
 const defaultFutures = [
 	"/ES", // S&P 500
 	"/EMD", // S&P MidCap 400
@@ -49,6 +51,7 @@ const defaultFutures = [
 	"/LBS", // Lumber
 	"/NG", // Natural Gas
 ];
+
 module.exports.event = new EventEmitter2({
 	wildcard: true,
 	delimiter: ".",
@@ -59,30 +62,29 @@ module.exports.event = new EventEmitter2({
 });
 
 let _requestid = 0; function requestid(){return _requestid += +1;};
-let _socketStatus = "disconnected";
+let _socketStatus = "idle";
 
 let sendQueue = []
 let sendHistory = [] 
-let recHistory = []
-let callbacks = []
+let recHistory = [] 
+
+let socketData = new SocketData("tda")
+module.exports.socketData = socketData
+module.exports.emit = (type, data, msgLength) => {
+	module.exports.event.emit(type, data);
+	socketData.data(type, msgLength)
+	//if (type.includes("http")) debugger
+}
 
 function socketStatus(_status) {
 	_socketStatus = _status
 	module.exports.event.emit("socketStatus", _status);
+	socketData.setStatus(_status)
 }
-
-// let status = {
-// 	socketStatus: _socketStatus,
-// 	sendhistory: sendHistory,
-// 	rechistory: recHistory,
-// 	requestid : _requestid,
-// 	msgCount : _msgcount,
-// 	packetCount : _packetcount,
-// }
 
 module.exports.load = () => {
 	ws = new WebSocket("wss://streamer-ws.tdameritrade.com/ws", {
-		maxReceivedFrameSize: 2231149 * 8
+		maxRxFrameSize: 2231149 * 8
 	});
 
 	ws.onopen = function () {
@@ -106,12 +108,10 @@ module.exports.load = () => {
 				},
 			],
 		};
-		//console.log(JSON.stringify(msg))
 		ws.send(JSON.stringify(msg));
 	};
 
 	ws.onmessage = function (message) {
-		//console.log(message)
 		if (message.data.charAt(0) === "{" && message.data.charAt(message.data.length - 1) === "}") {
 			packetPiece = "";
 		} else if ((message.data.charAt(0) === "{" && message.data.charAt(message.data.length - 1) !== "}") || message.data.charAt(0) !== "{" && message.data.charAt(message.data.length - 1) !== "}") {
@@ -125,40 +125,34 @@ module.exports.load = () => {
 		message.data = message.data.replace(` "C" `, ` -C- `);
 
 		try {
-			//console.log(packet) 
 			//if (message.data.includes(`""/`)) message.data = message.data.replace(`""`, `"`).replace(`""`, `"`);
+			let msgLength = message.data.length
+			module.exports.socketData.data("packetData", msgLength )
 			let packet = JSON.parse(message.data)
-			module.exports.event.emit("dataCount" ,["socketDataReceived", message.data.length * 2])
-			module.exports.event.emit("dataCount" ,["socketPacketCountReceived", 1])
-			
-			let datacount = 0
-			
 
 			if (packet.notify) {
 				packet.notify.map(p => {
-					module.exports.event.emit("notify", p);
+					module.exports.socketData.data("heartbeat",msgLength)
 					//console.log("\x1b[36m%s\x1b[0m", moment.unix(p.heartbeat/1000).format("LTS") + ` [${"Heartbeat".padEnd(16, " ")}] :: heartbeat: ${moment.unix(packet.notify[0].heartbeat/1000).format("LLLL")}`);
 				})
 			} else {
 				if (packet.data) {
-					//module.exports.event.emit("dataCount" ,["socketMessageCountReceived", packet.data.length]);
 					packet.data.map((m) => {
-						datacount = m.content.length
 						m.content.map(e => {
-							
 							if (JSON.stringify(m.service) == "NEWS_HEADLINE") {
 								console.log(`\x1b[41m ${m.service} [${e.key}] : ${JSON.stringify(e)} \x1b[0m`);
 							} else {
 								//console.log(`${m.service} [${e.key}] : ${JSON.stringify(e)}`);
 							}
 						})
-						socketData(m)
+						socketData.data(m.service, JSON.stringify(m).length)
+						doSocketData(m)
 					})
 				}
 
 				if (packet.response) {
-					module.exports.event.emit("dataCount" ,["socketMessageCountReceived", 1]);
-					packet.response.map((m) => {
+					packet.response.map(m => {
+						if (m.command != "SUBS")	module.exports.event.emit(m.service,m);
 						
 						switch (m.service) {
 							case "ADMIN":
@@ -167,7 +161,8 @@ module.exports.load = () => {
 									console.log(moment(Date.now()).format() + `: Login Sucuess! [code: ${m.content.code} packet:${m.content.packet}`, "\007");
 									initStream()
 								} else {
-									socketStatus(`FAILED [code: ${m.content.code} packet:${m.content.packet}`, "\007");
+									console.log(`FAILED [code: ${m.content.code} packet:${m.content.packet}`, "\007");
+									socketStatus(`unauthroized`);
 								}
 								break;
 							default:
@@ -195,14 +190,10 @@ module.exports.load = () => {
 		}
 	};
 
-	ws.onerror = function (error) {
-		console.log(error);
-		socketStatus("error", error)
-	};
+	ws.onerror = function (error) {socketStatus("error", error)};
 
 	ws.onclose = function (error) {
 		socketStatus("close", error)
-		//debugger
 		setTimeout(module.exports.load, 5000)
 	};
 	
@@ -433,9 +424,9 @@ module.exports.sendServiceMessage = (_type, _keys, _callback = null) =>{
 setInterval(() => {
 	if (_socketStatus === "connected" && sendQueue.length > 0) {
 		console.log(moment(Date.now()).format() + `: Send to TDA:`, sendQueue[0]);
-		module.exports.event.emit("dataCount" ,["socketPacketCountSent", 1]);
-		module.exports.event.emit("dataCount" ,["socketMessageCountSent", sendQueue[0].length]);
-		module.exports.event.emit("dataCount" ,["socketDataSent", JSON.stringify(sendQueue[0]).length * 2]);
+		module.exports.event.emit("dataCount" ,["socketPacketCountTx", 1]);
+		module.exports.event.emit("dataCount" ,["socketMessageCountTx", sendQueue[0].length]);
+		module.exports.event.emit("dataCount" ,["socketDataTx", JSON.stringify(sendQueue[0]).length * 2]);
 
 		sendHistory.push(sendQueue[0]);
 		ws.send(JSON.stringify(sendQueue.shift()));

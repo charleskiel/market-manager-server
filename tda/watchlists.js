@@ -23,7 +23,7 @@ module.exports.allWatchlistKeys = (lists) => {
 
 module.exports.fetchWatchlists = () => {
 	return new Promise((result, error) => {
-		getdata(`https://api.tdameritrade.com/v1/accounts/${auth.accountId()}/watchlists`).then((data) => {
+		getdata(`https://api.tdameritrade.com/v1/accounts/${auth.accountId()}/watchlists`,"fetchWatchlists").then((data) => {
 			console.log(moment(Date.now()).format(), `: Fetched  watchlists`)
 			watchlists = data;
 			transferWatchlists(data).then( () => {
