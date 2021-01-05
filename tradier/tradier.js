@@ -12,7 +12,7 @@ const socket = require('./tradierSocket.js');
 module.exports.socket = socket
 module.exports.getData = getData
 
-getData.event.on("getData", (data) => socket.socketData.getData("http|" + data[0],data[1], data[2] ))
+getData.event.on("getData", (data) => socket.socketData.getData("http_" + data[0],data[1], data[2] ))
 //module.exports.chains = require("./getdata").chains
 var partmsg = ""
 module.exports.load = function() { 

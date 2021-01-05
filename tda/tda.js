@@ -15,7 +15,7 @@ module.exports.socket = socket;
 module.exports.account = account
 module.exports.status = account.status
 
-module.exports.getData.event.on("getData", (data) => socket.emit("http|" + data[0],data[1],data[2]))
+module.exports.getData.event.on("getData", (data) => socket.emit("http_" + data[0],data[1],data[2]))
 module.exports.aggregate = () => {
 	collect = false;
     if (moment().day() == 0 && moment().hour() - 7 < 16 ){

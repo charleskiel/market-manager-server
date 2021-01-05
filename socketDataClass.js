@@ -90,11 +90,15 @@ class SocketData {
 
 	static globalData = {
 		socketDataTx: 0,
+		socketDataTxPm: 0,
+		socketDataTxPs: 0,
 		socketDataRx: 0,
 		socketDataRxPm: 0,
 		socketDataRxPs: 0,
 
 		socketCountTx: 0,
+		socketCountTxPm: 0,
+		socketCountTxPs: 0,
 		socketCountRx: 0,
 		socketCountRxPm: 0,
 		socketCountRxPs: 0,
@@ -108,10 +112,15 @@ class SocketData {
 	}
 	
 	static globalDataBuffer = {
+		socketDataTxPm: 0,
+		socketDataTxPs: 0,
 		socketDataRxPm: 0,
 		socketDataRxPs: 0,
+		socketCountTxPm: 0,
+		socketCountTxPs: 0,
 		socketCountRxPm: 0,
 		socketCountRxPs: 0,
+		httpCountPm: 0,
 		httpDataRxPm: 0,
 		httpDataRxPs: 0,
 	}
@@ -128,6 +137,7 @@ class SocketData {
 			socketCountRxPm : SocketData.globalData.socketCountRxPm,
 			socketCountRxPs : SocketData.globalData.socketCountRxPs,
 			httpCount : SocketData.globalData.httpCount,
+			httpCountPm : SocketData.globalData.httpCountPm,
 			httpDataRx : filesize(SocketData.globalData.httpDataRx, {round: 4}),
 			httpDataRxPm : SocketData.globalData.httpDataRxPm,
 			httpDataRxPs : filesize(SocketData.globalData.httpDataRxPs, {round: 4}),
@@ -151,13 +161,19 @@ class SocketData {
 		SocketData.globalData.socketDataRxPm =  SocketData.globalDataBuffer.socketDataRxPm
 		SocketData.globalDataBuffer.socketDataRxPm = 0
 
+		SocketData.globalData.httpCountPm = SocketData.globalDataBuffer.httpCountPm
+		SocketData.globalDataBuffer.httpCountPm = 0
+
+		SocketData.globalData.httpDataRxPm =  SocketData.globalDataBuffer.httpDataRxPm
+		SocketData.globalDataBuffer.httpDataRxPm = 0
+
 		mysql.query(`INSERT INTO global_stats
 				(\`timestamp\`, socketDataTx, socketDataRx, socketCountTx, socketCountRx, httpCount, httpDataRx)
 			VALUES
-				(${timestamp}, ${SocketData.globalData.socketDataTx}, ${SocketData.globalData.socketDataRx}, ${SocketData.globalData.socketCountTx}, ${SocketData.globalData.socketCountRx}, ${SocketData.globalData.httpCount},
-				${SocketData.globalData.httpDataRx})
+				(${timestamp}, ${SocketData.globalData.socketDataTxPm}, ${SocketData.globalData.socketDataRxPm}, ${SocketData.globalData.socketCountTxPm}, ${SocketData.globalData.socketCountRxPm}, ${SocketData.globalData.httpCountPm},
+				${SocketData.globalData.httpDataRxPm})
 			ON DUPLICATE KEY UPDATE
-				socketDataTx = ${SocketData.globalData.socketDataTx}, socketDataRx = ${SocketData.globalData.socketDataRx}, socketCountTx = ${SocketData.globalData.socketCountTx}, socketCountRx = ${SocketData.globalData.socketCountRx}, httpCount = ${SocketData.globalData.httpCount}, httpDataRx = ${SocketData.globalData.httpDataRx};`);
+				socketDataTx = ${SocketData.globalData.socketDataTxPm}, socketDataRx = ${SocketData.globalData.socketDataRxPm}, socketCountTx = ${SocketData.globalData.socketCountTxPm}, socketCountRx = ${SocketData.globalData.socketCountRxPm}, httpCount = ${SocketData.globalData.httpCountPm}, httpDataRx = ${SocketData.globalData.httpDataRxPm};`);
 
 
 		["tda", "tradier", "alpaca", "coinbase"].forEach(service => {
