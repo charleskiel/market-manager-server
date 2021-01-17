@@ -61,11 +61,11 @@ module.exports.load = () => {
 						if (msg.data.status == "authorized" && msg.data.action == "authenticate") {
 							console.log("Sucuess authenticating");
 							socketStatus("connected");
-
-							sendMessage({
-								action: "listen",
-								data: { streams: ["T.SPY","Q.SPY","AM.SPY","T.QQQ","Q.QQQ","AM.QQQ"] },
-							});
+							setInterval(doMsgTxBuffer,200)
+							// sendMessage({
+							// 	action: "listen",
+							// 	data: { streams: ["T.SPY","Q.SPY","AM.SPY","T.QQQ","Q.QQQ","AM.QQQ"] },
+							// });
 							// sendMessage({
 							// 	action: "listen",
 							// 	data: { streams: ["T.SPY", "Q.SPY", "AM.SPY", "T.QQQ", "Q.QQQ", "AM.QQQ"]},
@@ -80,7 +80,7 @@ module.exports.load = () => {
 						emit(msg.stream, msg, dataLength)
 						break;
 					case "listening":
-						console.log(msg.data.streams);
+						console.log(msg);
 						emit(msg.stream, msg, dataLength)
 						break;
 					case "trade_updates":
@@ -128,6 +128,24 @@ module.exports.load = () => {
 	};
 };
 
+
+let msgTxBuffer = []
 function sendMessage(message) {
-	ws.send(JSON.stringify(message))
+	msgTxBuffer.push(message)
+}
+
+function doMsgTxBuffer() {
+	if (ws.readyState === 1 && msgTxBuffer.length > 0) {
+		//socketData.data(msg.stream, msgTxBuffer[0], JSON.stringify(msgTxBuffer[0]).length)
+		
+		ws.send(JSON.stringify(msgTxBuffer.shift()))
+	}
+}
+
+module.exports.subscribe = (keys) => {
+	//console.log([...keys.map(key => {return "T." + key}),...keys.map(key => {return "Q." + key}),...keys.map(key => {return "AM." + key})])
+	sendMessage({
+		action: "listen",
+		data: { streams: [...keys.map(key => {return "T." + key}),...keys.map(key => {return "Q." + key}),...keys.map(key => {return "AM." + key})] },
+	});
 }

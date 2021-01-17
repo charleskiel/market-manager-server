@@ -93,7 +93,7 @@ module.exports.chains = (symbol) => {
 };
 
 module.exports.getData = (endpoint, type) => {
-	console.log(endpoint,type)
+	//console.log(endpoint,type)
 	lastFetchTime = Date.now();
 	return new Promise((result, fail) => {
 		const options = {

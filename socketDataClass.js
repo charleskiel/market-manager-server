@@ -264,7 +264,7 @@ class SocketData {
 
 				}
 				
-				console.log(`CALL insert_column("${this.service}_stats" ,"${type}")`)
+				//console.log(`CALL insert_column("${this.service}_stats" ,"${type}")`)
 				//setTimeout(function () { mysql.query(`CALL insert_column("${this.service}_stats" ,"${type}")`) },2000)
 
 

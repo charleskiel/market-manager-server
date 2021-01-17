@@ -13,7 +13,7 @@ const Crypto = require("./cryptoClass.js").Crypto;
 const productEvent = require("./productClass.js").event;
 const filesize = require('filesize')
 var EventEmitter2 = require("eventemitter2");
-const clientSocket = require('./clientSocket.js');
+const clientconnection = require('./clientconnection.js');
 const { count } = require('console');
 const { json } = require('body-parser');
 const cryptoClass = require('./cryptoClass.js');
@@ -45,12 +45,6 @@ todo = []
 
 products = productClass.products
 cryptos = cryptoClass.cryptos
-actives = {
-	ACTIVES_NASDAQ: {},
-	ACTIVES_NYSE: {},
-	ACTIVES_OTCBB: {},
-	ACTIVES_OPTIONS: {}
-}
 
 
 
@@ -77,7 +71,7 @@ module.exports.addProducts = (items) => {
 					equitiesChange = true;
 					break;
 				case "index":
-					indexesChange = true;
+					equitiesChange = true;
 					break;
 				case "future":
 					futuresChange = true;
@@ -91,11 +85,24 @@ module.exports.addProducts = (items) => {
 
 	//if (optionsChange || indexesChange || futuresChange) { console.log(optionsChange, indexesChange, futuresChange); }
 	if (equitiesChange) {
-		tda.socket.sendServiceMessage("equities", [...equities(), ...indexes()]); }
+		keys = [...indexes(),...equities()]
+		// console.log(keys)
+		// console.log(keys.slice(0,200))
+		// console.log(keys.slice(200))
+
+		if (keys.length <= 200) {
+			tda.socket.sendServiceMessage("equities",[keys].slice(0,200) ); }
+			alpaca.subscribe(keys.slice(200))
+		} else {
+			tda.socket.sendServiceMessage("equities", keys);
+		}
 	if (futuresChange) {
 		tda.socket.sendServiceMessage("futures", futures()) }
 	if (optionsChange) {
-		tda.socket.sendServiceMessage("options", options() ) }
+		tda.socket.sendServiceMessage("options", options())
+	}
+		mysql.log('monitor', 'addProducts', 'info', `Adding products to monitor: ${[...products.map(p => p.key)]}`)
+	
 }
 
 indexes = () => {return _.keys(products).filter(key => key.includes("$"))}
@@ -118,23 +125,29 @@ module.exports.state =  () =>{
 			"products" : { ...equities() },
 			tdaAccount: tda.account.status(),
 		});
-		error(fail);
+		error(error);
 	});
 };
 
+actives = {
+	ACTIVES_NASDAQ: {},
+	ACTIVES_NYSE: {},
+	ACTIVES_OTCBB: {},
+	ACTIVES_OPTIONS: {}
+}
 
 
-module.exports.addActives = (data) => {
+module.exports.addActives = (service, data) => {
 	//'4896;0;1:21:00;01:21:36;2;0:10:5341501:TSLA_121120C650:TSLA Dec 11 2020 650 Call:30439:0.57:TSLA_121120C700:TSLA Dec 11 2020 700 Call:24301:0.45:AAPL_121120C125:AAPL Dec 11 2020 125 Call:18369:0.34:TSLA_121120C630:TSLA Dec 11 2020 630 Call:16585:0.31:PLTR_121120C30:PLTR Dec 11 2020 30 Call:15938:0.3:TSLA_121120C640:TSLA Dec 11 2020 640 Call:15661:0.29:SPY_120720C369:SPY Dec 7 2020 369 Call:11761:0.22:SPY_120720P368:SPY Dec 7 2020 368 Put:11515:0.22:BA_121120C250:BA Dec 11 2020 250 Call:11137:0.…P368:SPY Dec 7 2020 368 Put:174854:0.55:SPY_120720C369:SPY Dec 7 2020 369 Call:146119:0.46:AAPL_121120C125:AAPL Dec 11 2020 125 Call:129594:0.4:SPY_120720P369:SPY Dec 7 2020 369 Put:116933:0.36:TSLA_121120C650:TSLA Dec 11 2020 650 Call:90102:0.28:SPY_120720C370:SPY Dec 7 2020 370 Call:87910:0.27:PLTR_121120C30:PLTR Dec 11 2020 30 Call:82489:0.26:TSLA_121120C700:TSLA Dec 11 2020 700 Call:70707:0.22:VIX_121620P19:VIX Dec 16 2020 19 Put:61588:0.19:SPY_120920C370:SPY Dec 9 2020 370 Call:57718:0.18'
 	let items = [];
-	switch (data.service) {
+	switch (service) {
 		case "ACTIVES_NASDAQ":
 		case "ACTIVES_NYSE":
 		case "ACTIVES_OTCBB":
-			var split = data.content[0]["1"].split(";");
+			var split = data["1"].split(";");
 			if (split.length > 1) {
 				var o = {
-					timestamp: data.timestamp,
+					timestamp: Date.now(),
 					"ID:": split[0],
 					sampleDuration: split[1],
 					"Start Time": split[2],
@@ -152,18 +165,21 @@ module.exports.addActives = (data) => {
 					o.groups.push({ symbol: split[i], volume: split[i + 1], priceChange: split[i + 2] });
 				}
 
-				actives[data.service][o.sampleDuration] = o;
+				//console.log(actives[service][o.sampleDuration])
+				actives[service][o.sampleDuration] = {};
+				actives[service][o.sampleDuration] = o;
+				module.exports.event.emit(service, o)
+
 			}
 			break;
 		case "ACTIVES_OPTIONS":
 			//console.log(moment(Date.now()).format() + ": OPTIONS Activies")
 			//console.log(m)
 			//debugger
-			data.content.map((act) => {
-				var split = act["1"].split(";");
+				var split = data["1"].split(";");
 				if (split[1]) {
 					var o = {
-						timestamp: data.timestamp,
+						timestamp: Date.now(),
 						"ID:": split[0],
 						sampleDuration: split[1],
 						"Start Time": split[2],
@@ -186,20 +202,19 @@ module.exports.addActives = (data) => {
 					//console.log(moment(Date.now()).format() + `: Default Message: ` + data.service, m);
 					//console.log(moment(Date.now()).format() + m);
 					actives.ACTIVES_OPTIONS[o.sampleDuration] = o;
+					module.exports.event.emit("ACTIVES_OPTIONS", o)
 				}
-			});
 	}
 
 	if (items.length > 0) {
 		//Add items to monitor
 		let products = [...items.map(item => { return new Product(item) })] ;
-		addProducts(products);
-		mysql.log('monitor', 'addProducts', 'info', `Adding products to monitor: ${[...products]}`)
+		module.exports.addProducts(products);
 		
-		console.log(data.service);
-		console.log(actives[data.service]);
+		//console.log(actives[service]);
 	}
 }
+module.exports.getActives = () => {return actives}
 const sleep = promisify(setTimeout);
 
 setInterval(function () {
@@ -298,10 +313,10 @@ tda.socket.event.on("QUOTE", (data) => {products[data.key].tdaQuote(data);})
 tda.socket.event.on("IMESALE_EQUITY", (data) => {products[data.key].tdaTimesale(data);})
 tda.socket.event.on("IMESALE_FUTURES", (data) => {products[data.key].tdaTimesale(data);})
 tda.socket.event.on("LEVELONE_FUTURES", (data) => {products[data.key].tdaFuturesQuote(data);})
-tda.socket.event.on("ACTIVES_NASDAQ", module.exports.addActives)
-tda.socket.event.on("ACTIVES_NYSE", module.exports.addActives)
-tda.socket.event.on("ACTIVES_OTCBB", module.exports.addActives)
-tda.socket.event.on("ACTIVES_OPTIONS", module.exports.addActives)
+tda.socket.event.on("ACTIVES_NASDAQ", (data) =>{module.exports.addActives("ACTIVES_NASDAQ",data)})
+tda.socket.event.on("ACTIVES_NYSE", (data) =>{module.exports.addActives("ACTIVES_NYSE",data)})
+tda.socket.event.on("ACTIVES_OTCBB", (data) =>{module.exports.addActives("ACTIVES_OTCBB",data)})
+tda.socket.event.on("ACTIVES_OPTIONS", (data) =>{module.exports.addActives("ACTIVES_OPTIONS",data)})
 
 
 coinbase.socket.event.on("data", (data) => cryptoClass.cryptoTick(data))
@@ -335,7 +350,7 @@ setInterval(function () {
 	let minute = Number(moment(startOfMinute).startOf("second").format('x')) + 6000
 	socketDataClass.perSecond()
 	if (sendDataStats) {
-		clientSocket.sendToClients({
+		clientconnection.sendToClients({
 			response: [
 				{
 				service: "DATASTATS",

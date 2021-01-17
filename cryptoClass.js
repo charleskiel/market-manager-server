@@ -239,26 +239,20 @@ class Crypto {
 	}
 
 	getChartHistory = () => {
-		if (this.type != "future") {
-			tda.getData.priceHistory(this.key)
-				.then((data) => {
-					if (data.candles.length > 0) {
-						this.todo.done = true;
-						data.candles.forEach((candle) => {
-							this.addChartData({ timestamp: candle.datetime * 1000, o: candle.open, h: candle.high, l: candle.low, c: candle.close, v: candle.volume }, false);
-						});
-						console.log(data.candles.length + " items for " + key + " done! ");
-					}
-				})
-				.catch((error) => {
-					console.log(error);
-					return false;
+		tda.getData.priceHistory(this.key)
+		.then((data) => {
+			if (data.candles.length > 0) {
+				this.todo.done = true;
+				data.candles.forEach((candle) => {
+					this.addChartData({ timestamp: candle.datetime * 1000, o: candle.open, h: candle.high, l: candle.low, c: candle.close, v: candle.volume }, false);
 				});
-		}
-		else if (this.type == "future") {
-			tda.socket.sendServiceMessage("CHART_HISTORY_FUTURES", this.key);
-		}
-	
+				console.log(data.candles.length + " items for " + key + " done! ");
+			}
+		})
+		.catch((error) => {
+			console.log(error);
+			return false;
+		});
 	}
 	
 

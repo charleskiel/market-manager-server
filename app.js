@@ -11,13 +11,15 @@ const _ = require('lodash');
 
 
 const tda = require('./tda/tda.js')
+const tdaWatchlists = require('./tda/watchlists.js')
 const tradier = require('./tradier/tradier.js')
 const alpaca = require('./alpaca/alpaca.js')
 const coinbase = require('./coinbase/coinbase')
 
 const productClass = require("./productClass.js").Product;
 
-const monitor = require("./monitor.js")
+const monitor = require("./monitor.js");
+const clientConnection = require('./clientconnection.js');
 //const mysql = require("./mysql.js");
 //const reddit = require('./reddit/reddit')
 //const fetch = require('node-fetch');
@@ -29,7 +31,7 @@ alpaca.load()
 coinbase.load()
 
 monitor.load()
-
+clientConnection.load()
 
 app.use(function(req, res, next) {
      res.header("Access-Control-Allow-Origin", "*");
@@ -71,42 +73,42 @@ app.get('/tda_callback', (req, res) => {
 
 app.get('/pricehistory', (req, res) => {
      tda.priceHistory(req.query).then(data => {
-          console.log(`Sucuess: ${data}`)
+          // console.log(`Sucuess:`, data)
           fs.writeFileSync(`./data/${req.query.symbol}.json`, JSON.stringify(data, undefined, 4), (err) => { if (err) throw err; })
           res.send(JSON.stringify(data, undefined, 4));
      }, error => {
-          console.log(`${error}`)
+          // console.log(`${error}`)
           res.send("{ERROR:ERROR}")
      })
 });
 
 app.get('/chains', (req, res) => {
      tda.chains(req.query.symbol).then(data => {
-          console.log(`Sucuess: ${data}`)
+          // console.log(`Sucuess:`, data)
           fs.writeFileSync(`./data/${req.query.symbol}_chain.json`, JSON.stringify(data, undefined, 4), (err) => { if (err) throw err; })
           res.send(JSON.stringify(data, undefined, 4));
      }, error => {
-          console.log(`${error}`)
+          // console.log(`${error}`)
           res.send("{ERROR:ERROR}")
      })
 });
 
 app.get('/watchlist', (req, res) => {
      tda.watchlists().then(data => {
-          console.log(`Sucuess: ${data}`)
+          // console.log(`Sucuess:`, data)
           res.send(JSON.stringify(data, undefined, 4));
      }, error => {
-          console.log(`${error}`)
+          // console.log(`${error}`)
           res.send("{ERROR:ERROR}")
      })
 });
 
-app.get('/mm/state', (req, res) => {
+app.get('/state', (req, res) => {
      monitor.state().then(data => {
-          console.log(`Sucuess: ${data}`)
+          // console.log(`Sucuess:`, data)
           res.send(JSON.stringify(data, undefined, 4));
      }, error => {
-          console.log(`${error}`)
+          // console.log(`${error}`)
           res.send("{ERROR:ERROR}")
      })
 });
@@ -116,27 +118,22 @@ app.get('/status', (req, res) => {
 });
 
 app.get('/accountStatus', (req, res) => {
-     console.log(tda.accountStatus());
+     // console.log(tda.account.status());
      res.send(JSON.stringify(tda.status(), undefined, 4));
 });
 
 app.get('/getWatchlists', (req, res) => {
-     tda.getWatchlists().then(data => {
-          console.log(`Sucuess:`, data)
-          res.send(JSON.stringify(data, undefined, 4));
-     }, error => {
-          console.log(`${error}`)
-          res.send("{ERROR:ERROR}")
-     })
+     res.send(JSON.stringify(tdaWatchlists.watchlists, undefined, 4));
+     
 });
 
 app.get('/reddit', (req, res) => {
-     console.log(req.path)
-     console.log(req.query)
+     // console.log(req.path)
+     // console.log(req.query)
      res.send("Hello Reddit.")
 });
 
-app.get('/mm/data', (req, res) => {
+app.get('/data', (req, res) => {
      res.send(JSON.stringify(monitor.getDataStats(), undefined, 4));
 });
 

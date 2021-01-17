@@ -168,7 +168,7 @@ module.exports.load = () => {
 							default:
 								recHistory.push(m)
 								if (m.content.code === 0) {
-									console.log(`[${moment(Date.now()).format()}] ${m.service} \x1b[92m OK `);
+									//console.log(`[${moment(Date.now()).format()}] ${m.service} \x1b[92m OK `);
 								} else {
 									console.log(`\x1b[44m [${moment(Date.now()).format()}] \x1b[0m  \x1b[44m [${m.requestid}] \x1b[0m  ${m.service}  \x1b[41m Fail  \x1b[0m ${m.content.msg}`,m)
 									console.log("\007");

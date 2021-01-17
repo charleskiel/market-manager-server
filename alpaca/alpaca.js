@@ -5,13 +5,18 @@ const socket = require('./alpacaSocket')
 //const alpacaAPI = new Alpaca()
    
 module.exports.socket = socket
+
 const request = require('request');
 const moment = require('moment');
 
-module.exports.load = ()=> {
+module.exports.load = () => {
 	socket.load()
-
 }
+
+module.exports.subscribe = (keys) =>{
+	socket.subscribe(keys)
+}
+
 // module.exports.refresh = () => {
 // 	//api = JSON.parse(fs.readFileSync('./alpaca/api.json'))
 // 	console.log("Starting")

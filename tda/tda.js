@@ -7,7 +7,7 @@ const account = require('./account')
 const auth = require('./auth')
 const watchlists = require('./watchlists')
 const socket = require('./tdaSocket.js');
-
+module.exports.watchlists = watchlists.watchlists
 module.exports.getData = require('./getdata')
 
 module.exports.socket = socket;
@@ -56,7 +56,7 @@ module.exports.status = () => {
 			account: account.status(),
 			uptime: process.uptime(),
 		},
-		actives: require("../monitor").monitor.actives,
+		actives: require("../monitor").actives,
     };
     
 }

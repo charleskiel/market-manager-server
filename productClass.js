@@ -116,6 +116,7 @@ class Product {
 				case "52": self.RegularMarketTradeTime = v; break;
 			}
 		});
+		data.type = "quote"
 		event.emit("quote", data)
 	};
 
@@ -131,6 +132,7 @@ class Product {
 				case "3": self.LastSize = v; break;
 			}
 		});
+		data.type = "timesale"
 		event.emit("timeSale", data);
 	};
 
@@ -159,6 +161,7 @@ class Product {
 	
 
 	addChartData = (data, emit = true) => {
+		data.type = "chart"
 		if (data.v < 0) data.v = 0;
 		if (this.type != "future") {
 			mysql.query(`insert into \`CHART_EQUITY\` (\`key\`,\`timestamp\`,o,h,l,c,v) VALUES ('${this.key}', ${data.timestamp}, ${data.o}, ${data.h}, ${data.l}, ${data.c}, ${data.v}) ON DUPLICATE KEY UPDATE  o = ${data.o}, h = ${data.h}, l = ${data.l}, c = ${data.c}, v = ${data.v}`);
